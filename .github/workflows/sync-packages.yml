@@ -1,0 +1,547 @@
+name: Sync OpenWrt Packages
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # 每周日凌晨2点执行
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync-packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cleanup old arm_cortex-a9_neon directories
+        run: |
+          # 删除旧的 arm_cortex-a9_neon 目录，统一使用 arm_cortex-a9
+          rm -rf apk/arm_cortex-a9_neon ipk/arm_cortex-a9_neon
+          echo "已清理旧的 arm_cortex-a9_neon 目录"
+
+      - name: Download and sync clashoo packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/kenzok8/openwrt-clashoo/releases/latest")
+
+          mkdir -p apk/x86_64/clashoo apk/aarch64_cortex-a53/clashoo apk/aarch64_generic/clashoo apk/arm_cortex-a9/clashoo
+          mkdir -p ipk/x86_64/clashoo ipk/aarch64_cortex-a53/clashoo ipk/aarch64_generic/clashoo ipk/arm_cortex-a9/clashoo
+          rm -f apk/*/clashoo/* ipk/*/clashoo/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== clashoo $arch ==="
+
+            # 架构特定的 apk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | endswith($av + ".apk")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "apk/$arch/clashoo/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 apk (all)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "apk/$arch/clashoo/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 架构特定的 ipk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.ipk$")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "ipk/$arch/clashoo/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/clashoo/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
+      - name: Download and sync daede packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/kenzok8/openwrt-daede/releases/latest")
+
+          mkdir -p apk/x86_64/daede apk/aarch64_cortex-a53/daede apk/aarch64_generic/daede apk/arm_cortex-a9/daede
+          mkdir -p ipk/x86_64/daede ipk/aarch64_cortex-a53/daede ipk/aarch64_generic/daede ipk/arm_cortex-a9/daede
+          rm -f apk/*/daede/* ipk/*/daede/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== daede $arch ==="
+
+            # 架构特定的 apk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | endswith($av + ".apk")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "apk/$arch/daede/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 apk (all)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "apk/$arch/daede/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 架构特定的 ipk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.ipk$")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "ipk/$arch/daede/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/daede/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
+      - name: Download and sync argon packages
+        run: |
+          mkdir -p apk/x86_64/argon apk/aarch64_cortex-a53/argon apk/aarch64_generic/argon apk/arm_cortex-a9/argon
+          mkdir -p ipk/x86_64/argon ipk/aarch64_cortex-a53/argon ipk/aarch64_generic/argon ipk/arm_cortex-a9/argon
+          rm -f apk/*/argon/* ipk/*/argon/* 2>/dev/null || true
+
+          # 下载 luci-theme-argon (APK - 最新 release)
+          echo "=== argon APK (luci-theme-argon) ==="
+          THEME=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-theme-argon/releases/latest")
+          for url in $(echo "$THEME" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+              curl -sL "$url" -o "apk/$arch/argon/$filename" 2>/dev/null || true
+            done && echo "  $filename"
+          done
+
+          # 下载 luci-theme-argon (IPK - 遍历 releases 直到找到)
+          echo "=== argon IPK (luci-theme-argon) ==="
+          RELEASES=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-theme-argon/releases?per_page=10")
+          FOUND_IPK=""
+          for i in 0 1 2 3 4 5 6 7 8 9; do
+            [ -n "$FOUND_IPK" ] && break
+            TAG=$(echo "$RELEASES" | jq -r ".[$i].tag_name // empty")
+            [ -z "$TAG" ] && break
+            URL=$(echo "$RELEASES" | jq -r ".[$i].assets[] | select(.name | endswith(\".ipk\")) | .browser_download_url")
+            [ -n "$URL" ] && filename=$(basename "$URL") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+              curl -sL "$URL" -o "ipk/$arch/argon/$filename" 2>/dev/null || true
+            done && echo "  $filename ($TAG)" && FOUND_IPK="yes"
+          done
+          [ -z "$FOUND_IPK" ] && echo "  未找到 luci-theme-argon IPK" || true
+
+          # 下载 luci-app-argon-config (IPK - 只保留 zh-cn 语言包)
+          echo "=== argon IPK (luci-app-argon-config) ==="
+          APP=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-app-argon-config/releases/latest")
+          for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".ipk") and (contains("-zh-cn") or test("^luci-app-argon-config"))) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+              curl -sL "$url" -o "ipk/$arch/argon/$filename" 2>/dev/null || true
+            done && echo "  $filename"
+          done
+
+      - name: Download and sync passwall packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall/releases/latest")
+
+          mkdir -p apk/x86_64/passwall apk/aarch64_cortex-a53/passwall apk/aarch64_generic/passwall apk/arm_cortex-a9/passwall
+          mkdir -p ipk/x86_64/passwall ipk/aarch64_cortex-a53/passwall ipk/aarch64_generic/passwall ipk/arm_cortex-a9/passwall
+          rm -f apk/*/passwall/* ipk/*/passwall/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== passwall $arch ==="
+
+            # 架构特定的 apk (25.12+, 支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "apk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 apk (25.12+ 且没有架构后的通用包，如 25.12+_luci-app-passwall-26.6.2-r1.apk)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "apk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 apk (_all 格式) (25.12+)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "apk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 架构特定的 ipk (23.05-24.10, 支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("23.05-24.10") and endswith(".ipk")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "ipk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式) (23.05-24.10, 排除 22.03)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("23.05-24.10")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
+      - name: Download and sync openclash packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/vernesong/OpenClash/releases/latest")
+
+          mkdir -p apk/x86_64/openclash apk/aarch64_cortex-a53/openclash apk/aarch64_generic/openclash apk/arm_cortex-a9/openclash
+          mkdir -p ipk/x86_64/openclash ipk/aarch64_cortex-a53/openclash ipk/aarch64_generic/openclash ipk/arm_cortex-a9/openclash
+          rm -f apk/*/openclash/* ipk/*/openclash/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== openclash $arch ==="
+
+            # 架构特定的 apk (如 x86_64.apk, 支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | endswith($av + ".apk")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "apk/$arch/openclash/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 apk (没有架构后缀的通用包，如 luci-app-openclash-0.47.096.apk)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("[a-z]-[0-9].*\\.apk$") and test("^[^_]*-[^_]*-[^_]*-[0-9]")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "apk/$arch/openclash/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 apk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "apk/$arch/openclash/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 架构特定的 ipk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.ipk$")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "ipk/$arch/openclash/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/openclash/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
+      - name: Download and sync nikki packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/nikkinikki-org/OpenWrt-nikki/releases/latest")
+
+          mkdir -p apk/x86_64/nikki apk/aarch64_cortex-a53/nikki apk/aarch64_generic/nikki apk/arm_cortex-a9/nikki
+          mkdir -p ipk/x86_64/nikki ipk/aarch64_cortex-a53/nikki ipk/aarch64_generic/nikki ipk/arm_cortex-a9/nikki
+          rm -f apk/*/nikki/* ipk/*/nikki/* 2>/dev/null || true
+
+          # 下载并解压 apk (25.12.tar.gz)
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== nikki APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r --arg a "$arch" '.assets[] | select(.name | test("nikki_" + $a + "-openwrt-25\\.12\\.tar\\.gz")) | .browser_download_url')
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/nikki.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/nikki.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/nikki/" \; 2>/dev/null || true
+              ls "apk/$arch/nikki/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
+            fi
+          done
+
+          # 下载并解压 ipk (24.10.tar.gz)
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== nikki IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"nikki_${arch}-openwrt-24\\\\.10\\\\.tar\\\\.gz\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/nikki.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/nikki.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/nikki/" \; 2>/dev/null || true
+              ls "ipk/$arch/nikki/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
+          done
+
+      - name: Download and sync bandix packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest")
+
+          mkdir -p apk/x86_64/bandix apk/aarch64_cortex-a53/bandix apk/aarch64_generic/bandix apk/arm_cortex-a9/bandix
+          mkdir -p ipk/x86_64/bandix ipk/aarch64_cortex-a53/bandix ipk/aarch64_generic/bandix ipk/arm_cortex-a9/bandix
+          rm -f apk/*/bandix/* ipk/*/bandix/* 2>/dev/null || true
+
+          # bandix 只有 _all 格式的文件，复制到所有架构
+          for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
+            if [ -n "$url" ]; then
+              filename=$(basename $url)
+              for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+                curl -sL "$url" -o "apk/$arch/bandix/$filename" 2>/dev/null || true
+              done
+              echo "APK: $filename (复制到所有架构)"
+            fi
+          done
+
+          for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
+            if [ -n "$url" ]; then
+              filename=$(basename $url)
+              for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+                curl -sL "$url" -o "ipk/$arch/bandix/$filename" 2>/dev/null || true
+              done
+              echo "IPK: $filename (复制到所有架构)"
+            fi
+          done
+
+      - name: Download and sync mosdns packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest")
+
+          mkdir -p apk/x86_64/mosdns apk/aarch64_cortex-a53/mosdns apk/aarch64_generic/mosdns apk/arm_cortex-a9/mosdns
+          mkdir -p ipk/x86_64/mosdns ipk/aarch64_cortex-a53/mosdns ipk/aarch64_generic/mosdns ipk/arm_cortex-a9/mosdns
+          rm -f apk/*/mosdns/* ipk/*/mosdns/* 2>/dev/null || true
+
+          # 下载并解压 apk (25.12.tar.gz) - 文件名格式: x86_64-openwrt-25.12.tar.gz
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== mosdns APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^${arch}-openwrt-25\\\\.12\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/mosdns.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/mosdns.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/mosdns/" \; 2>/dev/null || true
+              ls "apk/$arch/mosdns/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
+            fi
+          done
+
+          # 下载并解压 ipk (24.10.tar.gz)
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== mosdns IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^${arch}-openwrt-24\\\\.10\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/mosdns.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/mosdns.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/mosdns/" \; 2>/dev/null || true
+              ls "ipk/$arch/mosdns/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
+          done
+
+      - name: Download and sync aurora packages
+        run: |
+          mkdir -p apk/x86_64/aurora apk/aarch64_cortex-a53/aurora apk/aarch64_generic/aurora apk/arm_cortex-a9/aurora
+          mkdir -p ipk/x86_64/aurora ipk/aarch64_cortex-a53/aurora ipk/aarch64_generic/aurora ipk/arm_cortex-a9/aurora
+          rm -f apk/*/aurora/* ipk/*/aurora/* 2>/dev/null || true
+
+          # 下载 luci-theme-aurora (APK)
+          echo "=== aurora APK (luci-theme-aurora) ==="
+          THEME=$(curl -sL "https://api.github.com/repos/eamonxg/luci-theme-aurora/releases/latest")
+          for url in $(echo "$THEME" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+              curl -sL "$url" -o "apk/$arch/aurora/$filename" 2>/dev/null || true
+            done && echo "  $filename"
+          done
+
+          # 下载 luci-theme-aurora (IPK)
+          echo "=== aurora IPK (luci-theme-aurora) ==="
+          for url in $(echo "$THEME" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+              curl -sL "$url" -o "ipk/$arch/aurora/$filename" 2>/dev/null || true
+            done && echo "  $filename"
+          done
+
+          # 下载 luci-app-aurora-config (APK)
+          echo "=== aurora APK (luci-app-aurora-config) ==="
+          APP=$(curl -sL "https://api.github.com/repos/eamonxg/luci-app-aurora-config/releases/latest")
+          for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+              curl -sL "$url" -o "apk/$arch/aurora/$filename" 2>/dev/null || true
+            done && echo "  $filename"
+          done
+
+          # 下载 luci-app-aurora-config (IPK - 只保留 zh-cn 语言包)
+          echo "=== aurora IPK (luci-app-aurora-config) ==="
+          for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".ipk") and contains("-zh-cn")) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+              curl -sL "$url" -o "ipk/$arch/aurora/$filename" 2>/dev/null || true
+            done && echo "  $filename"
+          done
+
+      - name: Download and sync poweroffdevice packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-poweroffdevice/releases/latest")
+
+          mkdir -p apk/x86_64/poweroffdevice apk/aarch64_cortex-a53/poweroffdevice apk/aarch64_generic/poweroffdevice apk/arm_cortex-a9/poweroffdevice
+          mkdir -p ipk/x86_64/poweroffdevice ipk/aarch64_cortex-a53/poweroffdevice ipk/aarch64_generic/poweroffdevice ipk/arm_cortex-a9/poweroffdevice
+          rm -f apk/*/poweroffdevice/* ipk/*/poweroffdevice/* 2>/dev/null || true
+
+          # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== poweroffdevice APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/poweroffdevice.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/poweroffdevice.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/poweroffdevice/" \; 2>/dev/null || true
+              ls "apk/$arch/poweroffdevice/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
+            fi
+          done
+
+          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== poweroffdevice IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/poweroffdevice.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/poweroffdevice.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/poweroffdevice/" \; 2>/dev/null || true
+              ls "ipk/$arch/poweroffdevice/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
+          done
+
+      - name: Download and sync partexp packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-partexp/releases/latest")
+
+          mkdir -p apk/x86_64/partexp apk/aarch64_cortex-a53/partexp apk/aarch64_generic/partexp apk/arm_cortex-a9/partexp
+          mkdir -p ipk/x86_64/partexp ipk/aarch64_cortex-a53/partexp ipk/aarch64_generic/partexp ipk/arm_cortex-a9/partexp
+          rm -f apk/*/partexp/* ipk/*/partexp/* 2>/dev/null || true
+
+          # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== partexp APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/partexp.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/partexp.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/partexp/" \; 2>/dev/null || true
+              ls "apk/$arch/partexp/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
+            fi
+          done
+
+          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== partexp IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/partexp.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/partexp.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/partexp/" \; 2>/dev/null || true
+              ls "ipk/$arch/partexp/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
+          done
+
+      - name: Download and sync netwizard packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-netwizard/releases/latest")
+
+          mkdir -p apk/x86_64/netwizard apk/aarch64_cortex-a53/netwizard apk/aarch64_generic/netwizard apk/arm_cortex-a9/netwizard
+          mkdir -p ipk/x86_64/netwizard ipk/aarch64_cortex-a53/netwizard ipk/aarch64_generic/netwizard ipk/arm_cortex-a9/netwizard
+          rm -f apk/*/netwizard/* ipk/*/netwizard/* 2>/dev/null || true
+
+          # 下载并解压 apk (SNAPSHOT.tar.gz) - 里面是 apk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== netwizard APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/netwizard.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/netwizard.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/netwizard/" \; 2>/dev/null || true
+              ls "apk/$arch/netwizard/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
+            fi
+          done
+
+          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== netwizard IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/netwizard.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/netwizard.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/netwizard/" \; 2>/dev/null || true
+              ls "ipk/$arch/netwizard/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 OpenWrt 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+            git push || true
+          fi
+
+
