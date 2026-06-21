@@ -15,12 +15,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cleanup old arm_cortex-a9_neon directories
-        run: |
-          # 删除旧的 arm_cortex-a9_neon 目录，统一使用 arm_cortex-a9
-          rm -rf apk/arm_cortex-a9_neon ipk/arm_cortex-a9_neon
-          echo "已清理旧的 arm_cortex-a9_neon 目录"
-
       - name: Download and sync clashoo packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/kenzok8/openwrt-clashoo/releases/latest")
