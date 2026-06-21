@@ -531,6 +531,20 @@ jobs:
 
       - name: Commit and push changes
         run: |
+          # 过滤非 zh-cn 语言包
+          echo "=== 过滤语言包 ==="
+          for dir in apk/*/* ipk/*/*; do
+            [ -d "$dir" ] || continue
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              # 删除 luci-i18n 开头的非 zh-cn 语言包
+              if [[ $(basename "$file") == luci-i18n-* ]] && [[ ! $(basename "$file") =~ -zh-cn ]]; then
+                rm -f "$file"
+                echo "  删除: $(basename "$file")"
+              fi
+            done
+          done
+
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
