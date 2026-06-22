@@ -209,9 +209,8 @@ jobs:
             done
           done
 
-
           # ==========================================
-          # 第二部分：获取 openwrt-passwall2 仓库最新包并追加
+          # 第二部分：获取 openwrt-passwall2 仓库最新包（支持直链 + ZIP解压）
           # ==========================================
           echo ">>> 正在同步 openwrt-passwall2 仓库..."
           RESPONSE2=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall2/releases/latest")
@@ -219,43 +218,79 @@ jobs:
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
             echo "=== passwall(2) $arch ==="
 
-            # 架构特定的 apk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            # ----------------------------------------
+            # 2.1 【直链下载】直接下载暴露在外的 apk 和 ipk 文件
+            # ----------------------------------------
+            # 架构特定的 apk/ipk
             for arch_variant in "$arch" "${arch}_neon"; do
-              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and (endswith(".apk") or endswith(".ipk"))) | .browser_download_url'); do
                 if [ -n "$url" ] && [ "$url" != "null" ]; then
                   ORIG_NAME=$(basename "$url")
                   [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                  curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+                  if [[ "$FILE_NAME" == *.apk ]]; then
+                    curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链->APK: $FILE_NAME"
+                  else
+                    curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链->IPK: $FILE_NAME"
+                  fi
                 fi
               done
             done
 
-            # 通用的 apk (_all 格式)
-            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | test("_all\\.apk$")) | .browser_download_url'); do
+            # 通用的 apk/ipk (_all 格式)
+            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | test("_all\\.(apk|ipk)$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
                 ORIG_NAME=$(basename "$url")
                 [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+                if [[ "$FILE_NAME" == *.apk ]]; then
+                  curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链_all->APK: $FILE_NAME"
+                else
+                  curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链_all->IPK: $FILE_NAME"
+                fi
               fi
             done
 
-            # 架构特定的 ipk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            # ----------------------------------------
+            # 2.2 【ZIP解压】下载压缩包并解压提取 apk 和 ipk
+            # ----------------------------------------
+            # 架构特定的 ZIP
             for arch_variant in "$arch" "${arch}_neon"; do
-              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and endswith(".ipk")) | .browser_download_url'); do
+              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and endswith(".zip")) | .browser_download_url'); do
                 if [ -n "$url" ] && [ "$url" != "null" ]; then
-                  ORIG_NAME=$(basename "$url")
-                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                  curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+                  TEMP_DIR=$(mktemp -d)
+                  curl -sL "$url" -o "$TEMP_DIR/pack.zip" 2>/dev/null
+                  unzip -q "$TEMP_DIR/pack.zip" -d "$TEMP_DIR" 2>/dev/null || true
+                  
+                  find "$TEMP_DIR" -type f \( -name "*.apk" -o -name "*.ipk" \) 2>/dev/null | while read -r file; do
+                    ORIG_NAME=$(basename "$file")
+                    [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                    if [[ "$FILE_NAME" == *.apk ]]; then
+                      mv "$file" "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  ZIP->APK: $FILE_NAME"
+                    else
+                      mv "$file" "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  ZIP->IPK: $FILE_NAME"
+                    fi
+                  done
+                  rm -rf "$TEMP_DIR" 2>/dev/null
                 fi
               done
             done
 
-            # 通用的 ipk (_all 格式)
-            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+            # 通用的 ZIP (_all.zip 或 luci- 开头的通用前端包 zip)
+            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | (contains("_all") or test("luci-")) and endswith(".zip")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
-                ORIG_NAME=$(basename "$url")
-                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+                TEMP_DIR=$(mktemp -d)
+                curl -sL "$url" -o "$TEMP_DIR/pack.zip" 2>/dev/null
+                unzip -q "$TEMP_DIR/pack.zip" -d "$TEMP_DIR" 2>/dev/null || true
+                
+                find "$TEMP_DIR" -type f \( -name "*.apk" -o -name "*.ipk" \) 2>/dev/null | while read -r file; do
+                  ORIG_NAME=$(basename "$file")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  if [[ "$FILE_NAME" == *.apk ]]; then
+                    mv "$file" "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  通用ZIP->APK: $FILE_NAME"
+                  else
+                    mv "$file" "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  通用ZIP->IPK: $FILE_NAME"
+                  fi
+                done
+                rm -rf "$TEMP_DIR" 2>/dev/null
               fi
             done
           done
