@@ -145,64 +145,117 @@ jobs:
 
       - name: Download and sync passwall packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall/releases/latest")
-
+          # 1. 统一创建目录并初始化（只在这里清空一次，防止后面的下载被覆盖删除）
           mkdir -p apk/x86_64/passwall apk/aarch64_cortex-a53/passwall apk/aarch64_generic/passwall apk/arm_cortex-a9/passwall
           mkdir -p ipk/x86_64/passwall ipk/aarch64_cortex-a53/passwall ipk/aarch64_generic/passwall ipk/arm_cortex-a9/passwall
           rm -f apk/*/passwall/* ipk/*/passwall/* 2>/dev/null || true
 
+          # ==========================================
+          # 第一部分：获取 openwrt-passwall 仓库最新包
+          # ==========================================
+          echo ">>> 正在同步 openwrt-passwall 仓库..."
+          RESPONSE1=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall/releases/latest")
+
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
-            echo "=== passwall $arch ==="
+            echo "=== passwall(1) $arch ==="
 
             # 架构特定的 apk (25.12+, 支持 arm_cortex-a9 和 arm_cortex-a9_neon)
             for arch_variant in "$arch" "${arch}_neon"; do
-              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
-                if [ -n "$url" ]; then
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
                   ORIG_NAME=$(basename "$url")
-                  # 如果文件名包含 luci，则去掉 luci 前面的所有字符（保留 luci 及其后面的部分）
                   [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                  
                   curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
                 fi
               done
             done
 
-            # 通用的 apk (25.12+ 且没有架构后的通用包，如 25.12+_luci-app-passwall-26.6.2-r1.apk)
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
-              if [ -n "$url" ]; then
+            # 通用的 apk (25.12+ 且没有架构后的通用包)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
                 ORIG_NAME=$(basename "$url")
                 [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                
                 curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
               fi
             done
 
             # 通用的 apk (_all 格式) (25.12+)
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
-              if [ -n "$url" ]; then
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
                 ORIG_NAME=$(basename "$url")
                 [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                
                 curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
               fi
             done
 
             # 架构特定的 ipk (23.05-24.10, 支持 arm_cortex-a9 和 arm_cortex-a9_neon)
             for arch_variant in "$arch" "${arch}_neon"; do
-              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("23.05-24.10") and endswith(".ipk")) | .browser_download_url'); do
-                if [ -n "$url" ]; then
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("23.05-24.10") and endswith(".ipk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
                   ORIG_NAME=$(basename "$url")
                   [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                  
                   curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
                 fi
               done
             done
 
-            # 通用的 ipk (_all 格式) (23.05-24.10, 排除 22.03)
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("23.05-24.10")) | .browser_download_url'); do
-              if [ -n "$url" ]; then
-                curl -sL "$url" -o "ipk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+            # 通用的 ipk (_all 格式) (23.05-24.10)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("23.05-24.10")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+              fi
+            done
+          done
+
+
+          # ==========================================
+          # 第二部分：获取 openwrt-passwall2 仓库最新包并追加
+          # ==========================================
+          echo ">>> 正在同步 openwrt-passwall2 仓库..."
+          RESPONSE2=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall2/releases/latest")
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
+            echo "=== passwall(2) $arch ==="
+
+            # 架构特定的 apk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 apk (_all 格式)
+            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | test("_all\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+              fi
+            done
+
+            # 架构特定的 ipk (支持 arm_cortex-a9 和 arm_cortex-a9_neon)
+            for arch_variant in "$arch" "${arch}_neon"; do
+              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and endswith(".ipk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
               fi
             done
           done
