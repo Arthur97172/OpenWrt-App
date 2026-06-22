@@ -103,6 +103,50 @@ jobs:
             done
           done
 
+      - name: Download and sync quickfile packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/wkccd/quickfile/releases/latest")
+
+          mkdir -p apk/x86_64/quickfile apk/aarch64_cortex-a53/quickfile apk/aarch64_generic/quickfile
+          mkdir -p ipk/x86_64/quickfile ipk/aarch64_cortex-a53/quickfile ipk/aarch64_generic/quickfile
+          rm -f apk/*/quickfile/* ipk/*/quickfile/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== tailscale $arch ==="
+
+            # 架构特定的 apk
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.apk$")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 架构特定的 ipk
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.ipk$")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
       - name: Download and sync tailscale packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/whzhni1/luci-app-tailscale/releases/latest")
@@ -146,6 +190,7 @@ jobs:
               fi
             done
           done
+
 
       - name: Download and sync argon packages
         run: |
