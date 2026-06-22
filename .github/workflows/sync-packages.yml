@@ -142,6 +142,7 @@ jobs:
             done && echo "  $filename"
           done
 
+
       - name: Download and sync passwall packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall/releases/latest")
@@ -157,7 +158,11 @@ jobs:
             for arch_variant in "$arch" "${arch}_neon"; do
               for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
                 if [ -n "$url" ]; then
-                  curl -sL "$url" -o "apk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                  ORIG_NAME=$(basename "$url")
+                  # 如果文件名包含 luci，则去掉 luci 前面的所有字符（保留 luci 及其后面的部分）
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  
+                  curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
                 fi
               done
             done
@@ -165,14 +170,20 @@ jobs:
             # 通用的 apk (25.12+ 且没有架构后的通用包，如 25.12+_luci-app-passwall-26.6.2-r1.apk)
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ]; then
-                curl -sL "$url" -o "apk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                
+                curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
               fi
             done
 
             # 通用的 apk (_all 格式) (25.12+)
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
               if [ -n "$url" ]; then
-                curl -sL "$url" -o "apk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                
+                curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
               fi
             done
 
@@ -180,7 +191,10 @@ jobs:
             for arch_variant in "$arch" "${arch}_neon"; do
               for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("23.05-24.10") and endswith(".ipk")) | .browser_download_url'); do
                 if [ -n "$url" ]; then
-                  curl -sL "$url" -o "ipk/$arch/passwall/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  
+                  curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
                 fi
               done
             done
