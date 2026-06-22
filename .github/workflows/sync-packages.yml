@@ -112,7 +112,7 @@ jobs:
           rm -f apk/*/quickfile/* ipk/*/quickfile/* 2>/dev/null || true
 
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== tailscale $arch ==="
+            echo "=== quickfile $arch ==="
 
             # 架构特定的 apk
             for arch_variant in "$arch"; do
