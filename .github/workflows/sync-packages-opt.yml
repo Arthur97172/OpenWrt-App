@@ -118,7 +118,7 @@ jobs:
             for arch_variant in "$arch"; do
               for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.apk$")) | .browser_download_url'); do
                 if [ -n "$url" ]; then
-                  curl -sL "$url" -o "apk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                  curl -sL "$url" -o "apk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
                 fi
               done
             done
@@ -126,7 +126,7 @@ jobs:
             # 通用的 apk
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "apk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  APK (LuCI): $(basename $url)"
+                curl -sL "$url" -o "apk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
               fi
             done
 
