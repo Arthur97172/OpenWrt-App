@@ -123,8 +123,8 @@ jobs:
               done
             done
 
-            # 通用的 apk (all)
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$")) | .browser_download_url'); do
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ]; then
                 curl -sL "$url" -o "apk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
               fi
