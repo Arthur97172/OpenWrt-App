@@ -114,35 +114,31 @@ jobs:
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== quickfile $arch ==="
 
-            # 架构特定的 apk
-            for arch_variant in "$arch"; do
-              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.apk$")) | .browser_download_url'); do
-                if [ -n "$url" ]; then
-                  curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
-                fi
-              done
-            done
-
-            # 通用的 apk
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+            # 1. 架构特定的 apk (去掉 $ 锚定，只要文件名包含架构名即可)
+            for url in $(echo "$RESPONSE" | jq -r --arg av "$arch" '.assets[] | select(.name | test("\\.apk$") and test($av)) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Arch APK: $(basename $url)"
               fi
             done
 
-            # 架构特定的 ipk
-            for arch_variant in "$arch"; do
-              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.ipk$")) | .browser_download_url'); do
-                if [ -n "$url" ]; then
-                  curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
-                fi
-              done
+            # 2. 通用的 apk (必须不包含任何已知架构名)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$") and (test("x86_64|aarch64") | not)) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Gen APK: $(basename $url)"
+              fi
             done
 
-            # 通用的 ipk (_all 格式)
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
-              if [ -n "$url" ]; then
-                curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+            # 3. 架构特定的 ipk (只要文件名包含架构名且以 .ipk 结尾)
+            for url in $(echo "$RESPONSE" | jq -r --arg av "$arch" '.assets[] | select(.name | test("\\.ipk$") and test($av)) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Arch IPK: $(basename $url)"
+              fi
+            done
+
+            # 4. 通用的 ipk (明确限制为 _all.ipk，或不包含任何架构名)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") or (test("\\.ipk$") and (test("x86_64|aarch64") | not))) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Gen IPK: $(basename $url)"
               fi
             done
           done
