@@ -103,6 +103,50 @@ jobs:
             done
           done
 
+      - name: Download and sync tailscale packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/whzhni1/luci-app-tailscale/releases/latest")
+
+          mkdir -p apk/x86_64/tailscale apk/aarch64_cortex-a53/tailscale apk/aarch64_generic/tailscale
+          mkdir -p ipk/x86_64/tailscale ipk/aarch64_cortex-a53/tailscale ipk/aarch64_generic/tailscale
+          rm -f apk/*/tailscale/* ipk/*/tailscale/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== tailscale $arch ==="
+
+            # 架构特定的 apk
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | endswith($av + ".apk")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "apk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 apk (all)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "apk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 架构特定的 ipk
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.ipk$")) | .browser_download_url'); do
+                if [ -n "$url" ]; then
+                  curl -sL "$url" -o "ipk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/tailscale/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
       - name: Download and sync argon packages
         run: |
           mkdir -p apk/x86_64/argon apk/aarch64_cortex-a53/argon apk/aarch64_generic/argon
