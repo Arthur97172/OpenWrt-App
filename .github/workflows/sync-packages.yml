@@ -393,7 +393,7 @@ jobs:
           echo "=== aurora IPK (luci-app-aurora-config) ==="
           for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
             [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic arm_cortex-a9; do
-              curl -sL "$url" -o "ipk/$arch/aurora/$filename" 2>/dev/null || true
+              curl -sL "$url" -o "apk/$arch/aurora/$filename" 2>/dev/null || true
             done && echo "  $filename"
           done
 
