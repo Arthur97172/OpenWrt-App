@@ -1,4 +1,4 @@
-name: Sync OpenWrt Packages
+name: Sync OpenWrt Packages Opt
 
 on:
   schedule:
