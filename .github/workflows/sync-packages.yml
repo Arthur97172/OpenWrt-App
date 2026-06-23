@@ -475,30 +475,38 @@ jobs:
 
       - name: Download and sync bandix packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest")
+          # 1. 分别获取 luci-app-bandix 和 openwrt-bandix 的最新 Release 信息
+          RESPONSE_LUCI=$(curl -sL "https://api.github.com/repos/timsaya/luci-app-bandix/releases/latest")
+          RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest")
 
+          # 创建目标目录
           mkdir -p apk/x86_64/bandix apk/aarch64_cortex-a53/bandix apk/aarch64_generic/bandix
           mkdir -p ipk/x86_64/bandix ipk/aarch64_cortex-a53/bandix ipk/aarch64_generic/bandix
           rm -f apk/*/bandix/* ipk/*/bandix/* 2>/dev/null || true
 
-          # bandix 只有 _all 格式的文件，复制到所有架构
-          for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
+          # 2. 将两个仓库的 JSON 数据合并，统一提取所有的 APK 和 IPK 下载链接
+          # 使用 jq 的 add 功能将两个 API 返回的 assets 数组合并
+          ALL_ASSETS=$(jq -n --argjson a "$RESPONSE_LUCI" --argjson b "$RESPONSE_CORE" '$a.assets + $b.assets')
+
+          # 3. 循环下载所有 APK 文件并分发到所有架构目录
+          for url in $(echo "$ALL_ASSETS" | jq -r '.[] | select(.name | endswith(".apk")) | .browser_download_url'); do
             if [ -n "$url" ]; then
-              filename=$(basename $url)
+              filename=$(basename "$url")
               for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
                 curl -sL "$url" -o "apk/$arch/bandix/$filename" 2>/dev/null || true
               done
-              echo "APK: $filename (复制到所有架构)"
+              echo "APK: $filename (已下载并分发到所有架构)"
             fi
           done
 
-          for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
+          # 4. 循环下载所有 IPK 文件并分发到所有架构目录
+          for url in $(echo "$ALL_ASSETS" | jq -r '.[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
             if [ -n "$url" ]; then
-              filename=$(basename $url)
+              filename=$(basename "$url")
               for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
                 curl -sL "$url" -o "ipk/$arch/bandix/$filename" 2>/dev/null || true
               done
-              echo "IPK: $filename (复制到所有架构)"
+              echo "IPK: $filename (已下载并分发到所有架构)"
             fi
           done
 
