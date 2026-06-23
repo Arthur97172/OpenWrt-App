@@ -509,7 +509,7 @@ jobs:
           done
 
           # =================================================================
-          # 3. 下载 openwrt-bandix (新逻辑：内核/驱动包按架构过滤)
+          # 3. 下载 openwrt-bandix
           # =================================================================
           echo "🌐 正在获取 openwrt-bandix 内核包最新 Release..."
           RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/timsaya/openwrt-bandix/releases/latest")
@@ -528,21 +528,32 @@ jobs:
                 continue # 忽略其他格式的文件
               fi
 
-              # 精准匹配架构分配目录
+              # ---------------- 精准微架构匹配 ----------------
               if [[ "$filename" == *"x86_64"* ]]; then
+                # x86_64 包
                 curl -sL "$url" -o "$type_dir/x86_64/bandix/$filename" 2>/dev/null || true
                 echo "  🎯 Core: $filename -> $type_dir/x86_64/bandix/"
-              elif [[ "$filename" == *"aarch64"* ]]; then
-                # aarch64 架构的文件，分发给两个 arm64 目录
+
+              elif [[ "$filename" == *"aarch64_cortex-a53"* ]]; then
+                # 专属于 cortex-a53 的包
                 curl -sL "$url" -o "$type_dir/aarch64_cortex-a53/bandix/$filename" 2>/dev/null || true
+                echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a53/bandix/"
+
+              elif [[ "$filename" == *"aarch64_generic"* ]]; then
+                # 专属于 aarch64_generic 的包
                 curl -sL "$url" -o "$type_dir/aarch64_generic/bandix/$filename" 2>/dev/null || true
-                echo "  🎯 Core: $filename -> $type_dir/aarch64_*/bandix/"
+                echo "  🎯 Core: $filename -> $type_dir/aarch64_generic/bandix/"
+
               elif [[ "$filename" == *"_all"* ]]; then
-                # 如果内核仓库里也有 _all 包，则兜底全架构复制
+                # 通用包放行到所有架构
                 for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
                   curl -sL "$url" -o "$type_dir/$arch/bandix/$filename" 2>/dev/null || true
                 done
                 echo "  🎯 Core: $filename -> 全架构复制(_all)"
+
+              else
+                # 自动跳过不属于你目标架构的文件（比如 cortex-a72, cortex-a76）
+                echo "  ↷ 跳过无关架构文件: $filename"
               fi
 
             fi
