@@ -23,9 +23,9 @@ jobs:
           rm -f apk/*/rtp2httpd/* ipk/*/rtp2httpd/* 2>/dev/null || true
 
           # =================================================================
-          # 2. 下载 luci-app-rtp2httpd (保持原逻辑：面板包全架构复制)
+          # 2. 下载 rtp2httpd 相关包
           # =================================================================
-          echo "🌐 正在获取 rtp2httpd 内核包最新 Release..."
+          echo "🌐 正在获取 rtp2httpd 内核及面板包最新 Release..."
           RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/stackia/rtp2httpd/releases/latest")
 
           # 提取所有资产链接
@@ -42,38 +42,35 @@ jobs:
                 continue # 忽略其他格式的文件
               fi
 
-              # ---------------- 精准微架构匹配 ----------------
-              if [[ "$filename" == *"x86_64"* ]]; then
-                # x86_64 包
+              # ---------------- 优先判断：通用面板与语言包 ----------------
+              if [[ "$filename" == *"luci-app-"* ]] || [[ "$filename" == *"luci-i18n-"* ]] || [[ "$filename" == *"_all"* ]]; then
+                # 面板包、语言包或明确标记 _all 的包，放行到所有架构
+                for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+                  curl -sL "$url" -o "$type_dir/$arch/rtp2httpd/$filename" 2>/dev/null || true
+                done
+                echo "  🎯 Universal: $filename -> 全架构复制"
+
+              # ---------------- 精准微架构匹配 (针对内核/二进制包) ----------------
+              elif [[ "$filename" == *"x86_64"* ]]; then
                 curl -sL "$url" -o "$type_dir/x86_64/rtp2httpd/$filename" 2>/dev/null || true
                 echo "  🎯 Core: $filename -> $type_dir/x86_64/rtp2httpd/"
 
               elif [[ "$filename" == *"aarch64_cortex-a53"* ]]; then
-                # 专属于 cortex-a53 的包
                 curl -sL "$url" -o "$type_dir/aarch64_cortex-a53/rtp2httpd/$filename" 2>/dev/null || true
                 echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a53/rtp2httpd/"
 
               elif [[ "$filename" == *"aarch64_generic"* ]]; then
-                # 专属于 aarch64_generic 的包
                 curl -sL "$url" -o "$type_dir/aarch64_generic/rtp2httpd/$filename" 2>/dev/null || true
                 echo "  🎯 Core: $filename -> $type_dir/aarch64_generic/rtp2httpd/"
 
-              elif [[ "$filename" == *"_all"* ]]; then
-                # 通用包放行到所有架构
-                for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-                  curl -sL "$url" -o "$type_dir/$arch/rtp2httpd/$filename" 2>/dev/null || true
-                done
-                echo "  🎯 Core: $filename -> 全架构复制(_all)"
-
               else
-                # 自动跳过不属于你目标架构的文件（比如 cortex-a72, cortex-a76）
+                # 自动跳过不属于你目标架构的文件（比如 cortex-a72, cortex-a76 等内核包）
                 echo "  ↷ 跳过无关架构文件: $filename"
               fi
 
             fi
           done
 
- 
       - name: Commit and push changes
         run: |
           # 过滤非 zh-cn 语言包
