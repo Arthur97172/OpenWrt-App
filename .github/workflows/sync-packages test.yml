@@ -1,0 +1,82 @@
+name: Sync OpenWrt Packages Test
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # 每周日凌晨2点执行
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync-packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download and sync rtp2httpd packages
+        run: |
+          # 1. 创建目标目录并清理旧文件
+          mkdir -p apk/x86_64/rtp2httpd apk/aarch64_cortex-a53/rtp2httpd apk/aarch64_generic/rtp2httpd
+          mkdir -p ipk/x86_64/rtp2httpd ipk/aarch64_cortex-a53/rtp2httpd ipk/aarch64_generic/rtp2httpd
+          rm -f apk/*/rtp2httpd/* ipk/*/rtp2httpd/* 2>/dev/null || true
+
+          # =================================================================
+          # 2. 下载 luci-app-rtp2httpd (保持原逻辑：面板包全架构复制)
+          # =================================================================
+          echo "🌐 正在获取 luci-app-rtp2httpd 最新 Release..."
+          RESPONSE_LUCI=$(curl -sL "https://api.github.com/repos/stackia/rtp2httpd/releases/latest")
+
+          # 下载 APK
+          for url in $(echo "$RESPONSE_LUCI" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
+            if [ -n "$url" ]; then
+              filename=$(basename "$url")
+              for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+                curl -sL "$url" -o "apk/$arch/rtp2httpd/$filename" 2>/dev/null || true
+              done
+              echo "  📦 APK: $filename (全架构复制)"
+            fi
+          done
+
+          # 下载 IPK
+          for url in $(echo "$RESPONSE_LUCI" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
+            if [ -n "$url" ]; then
+              filename=$(basename "$url")
+              for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+                curl -sL "$url" -o "ipk/$arch/rtp2httpd/$filename" 2>/dev/null || true
+              done
+              echo "  📦 IPK: $filename (全架构复制)"
+            fi
+          done
+
+ 
+      - name: Commit and push changes
+        run: |
+          # 过滤非 zh-cn 语言包
+          echo "=== 过滤语言包 ==="
+          for dir in apk/*/* ipk/*/*; do
+            [ -d "$dir" ] || continue
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              # 删除 luci-i18n 开头的非 zh-cn 语言包
+              if [[ $(basename "$file") == luci-i18n-* ]] && [[ ! $(basename "$file") =~ -zh-cn ]]; then
+                rm -f "$file"
+                echo "  删除: $(basename "$file")"
+              fi
+            done
+          done
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 OpenWrt 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+            git push || true
+          fi
+
