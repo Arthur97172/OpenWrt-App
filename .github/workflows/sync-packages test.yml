@@ -15,61 +15,48 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download and sync rtp2httpd packages
+      - name: Download and sync taskplan packages
         run: |
-          # 1. 创建目标目录并清理旧文件
-          mkdir -p apk/x86_64/rtp2httpd apk/aarch64_cortex-a53/rtp2httpd apk/aarch64_generic/rtp2httpd
-          mkdir -p ipk/x86_64/rtp2httpd ipk/aarch64_cortex-a53/rtp2httpd ipk/aarch64_generic/rtp2httpd
-          rm -f apk/*/rtp2httpd/* ipk/*/rtp2httpd/* 2>/dev/null || true
+          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-taskplan/releases/latest")
 
-          # =================================================================
-          # 2. 下载 rtp2httpd 相关包
-          # =================================================================
-          echo "🌐 正在获取 rtp2httpd 内核及面板包最新 Release..."
-          RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/stackia/rtp2httpd/releases/latest")
+          mkdir -p apk/x86_64/taskplan apk/aarch64_cortex-a53/taskplan apk/aarch64_generic/taskplan
+          mkdir -p ipk/x86_64/taskplan ipk/aarch64_cortex-a53/taskplan ipk/aarch64_generic/taskplan
+          rm -f apk/*/taskplan/* ipk/*/taskplan/* 2>/dev/null || true
 
-          # 提取所有资产链接
-          for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | .browser_download_url'); do
-            if [ -n "$url" ]; then
-              filename=$(basename "$url")
-              
-              # 判断是 apk 还是 ipk 决定主目录
-              if [[ "$filename" == *".apk" ]]; then
-                type_dir="apk"
-              elif [[ "$filename" == *".ipk" ]]; then
-                type_dir="ipk"
-              else
-                continue # 忽略其他格式的文件
-              fi
+          # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== taskplan APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
-              # ---------------- 优先判断：通用面板与语言包 ----------------
-              if [[ "$filename" == *"luci-app-"* ]] || [[ "$filename" == *"luci-i18n-"* ]] || [[ "$filename" == *"_all"* ]]; then
-                # 面板包、语言包或明确标记 _all 的包，放行到所有架构
-                for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-                  curl -sL "$url" -o "$type_dir/$arch/rtp2httpd/$filename" 2>/dev/null || true
-                done
-                echo "  🎯 Universal: $filename -> 全架构复制"
-
-              # ---------------- 精准微架构匹配 (针对内核/二进制包) ----------------
-              elif [[ "$filename" == *"x86_64"* ]]; then
-                curl -sL "$url" -o "$type_dir/x86_64/rtp2httpd/$filename" 2>/dev/null || true
-                echo "  🎯 Core: $filename -> $type_dir/x86_64/rtp2httpd/"
-
-              elif [[ "$filename" == *"aarch64_cortex-a53"* ]]; then
-                curl -sL "$url" -o "$type_dir/aarch64_cortex-a53/rtp2httpd/$filename" 2>/dev/null || true
-                echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a53/rtp2httpd/"
-
-              elif [[ "$filename" == *"aarch64_generic"* ]]; then
-                curl -sL "$url" -o "$type_dir/aarch64_generic/rtp2httpd/$filename" 2>/dev/null || true
-                echo "  🎯 Core: $filename -> $type_dir/aarch64_generic/rtp2httpd/"
-
-              else
-                # 自动跳过不属于你目标架构的文件（比如 cortex-a72, cortex-a76 等内核包）
-                echo "  ↷ 跳过无关架构文件: $filename"
-              fi
-
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/taskplan.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/taskplan.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/taskplan/" \; 2>/dev/null || true
+              ls "apk/$arch/taskplan/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
             fi
           done
+
+          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== taskplan IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/taskplan.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/taskplan.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/taskplan/" \; 2>/dev/null || true
+              ls "ipk/$arch/taskplan/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
+          done
+
 
       - name: Commit and push changes
         run: |
