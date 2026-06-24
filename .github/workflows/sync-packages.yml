@@ -158,44 +158,46 @@ jobs:
             done
           done
 
-      - name: Download and sync quickfile packages
+      - name: Download and sync taskplan packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/wkccd/quickfile/releases/latest")
+          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-taskplan/releases/latest")
 
-          mkdir -p apk/x86_64/quickfile apk/aarch64_cortex-a53/quickfile apk/aarch64_generic/quickfile
-          mkdir -p ipk/x86_64/quickfile ipk/aarch64_cortex-a53/quickfile ipk/aarch64_generic/quickfile
-          rm -f apk/*/quickfile/* ipk/*/quickfile/* 2>/dev/null || true
+          mkdir -p apk/x86_64/taskplan apk/aarch64_cortex-a53/taskplan apk/aarch64_generic/taskplan
+          mkdir -p ipk/x86_64/taskplan ipk/aarch64_cortex-a53/taskplan ipk/aarch64_generic/taskplan
+          rm -f apk/*/taskplan/* ipk/*/taskplan/* 2>/dev/null || true
 
+          # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== quickfile $arch ==="
+            echo "=== taskplan APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
-            # 1. 架构特定的 apk (去掉 $ 锚定，只要文件名包含架构名即可)
-            for url in $(echo "$RESPONSE" | jq -r --arg av "$arch" '.assets[] | select(.name | test("\\.apk$") and test($av)) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Arch APK: $(basename $url)"
-              fi
-            done
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/taskplan.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/taskplan.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/taskplan/" \; 2>/dev/null || true
+              ls "apk/$arch/taskplan/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
+            fi
+          done
 
-            # 2. 通用的 apk (必须不包含任何已知架构名)
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$") and (test("x86_64|aarch64") | not)) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "apk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Gen APK: $(basename $url)"
-              fi
-            done
+          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== taskplan IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
-            # 3. 架构特定的 ipk (只要文件名包含架构名且以 .ipk 结尾)
-            for url in $(echo "$RESPONSE" | jq -r --arg av "$arch" '.assets[] | select(.name | test("\\.ipk$") and test($av)) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Arch IPK: $(basename $url)"
-              fi
-            done
-
-            # 4. 通用的 ipk (明确限制为 _all.ipk，或不包含任何架构名)
-            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") or (test("\\.ipk$") and (test("x86_64|aarch64") | not))) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "ipk/$arch/quickfile/$(basename $url)" 2>/dev/null && echo "  Gen IPK: $(basename $url)"
-              fi
-            done
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/taskplan.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/taskplan.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/taskplan/" \; 2>/dev/null || true
+              ls "ipk/$arch/taskplan/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
           done
 
       - name: Download and sync tailscale packages
