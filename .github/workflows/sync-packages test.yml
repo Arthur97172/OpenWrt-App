@@ -80,10 +80,15 @@ jobs:
           git add -A
 
           if git diff --staged --quiet; then
-            echo "没有检测到文件更改，跳过提交"
-          else
-            git diff --staged --stat
-            git commit -m "自动同步 OpenWrt 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
-            git push || true
-          fi
-
+              echo "没有检测到文件更改，跳过提交"
+            else
+              git diff --staged --stat
+              git commit -m "自动同步 OpenWrt 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+              
+              # === 关键修复步骤 ===
+              # 1. 尝试拉取远程最新代码并变基，如果因为冲突失败则取消变基
+              git pull --rebase origin main || git rebase --abort
+              
+              # 2. 重新推送
+              git push origin main
+            fi
