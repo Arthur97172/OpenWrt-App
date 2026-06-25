@@ -20,6 +20,11 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest")
 
+          # 调试日志：如果还是找不到，可以在 Actions 日志里直接看到官方的所有文件名
+          echo "=== 远程仓库文件列表 ==="
+          echo "$RESPONSE" | jq -r '.assets[].name'
+          echo "========================"
+
           mkdir -p apk/x86_64/easytier apk/aarch64_cortex-a53/easytier apk/aarch64_generic/easytier
           mkdir -p ipk/x86_64/easytier ipk/aarch64_cortex-a53/easytier ipk/aarch64_generic/easytier
           rm -f apk/*/easytier/* ipk/*/easytier/* 2>/dev/null || true
@@ -27,13 +32,12 @@ jobs:
           # ==================== 1. 处理 APK (.zip) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== easytier APK $arch ==="
-            # 匹配格式如: x86_64-SNAPSHOT.zip
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^${arch}-SNAPSHOT\\\\.zip$\")) | .browser_download_url")
+            # 改用 test() 包含匹配，且 (?i) 忽略 snapshot 的大小写
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"${arch}.*(?i)snapshot.*\\.zip$\")) | .browser_download_url")
 
             if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
               curl -sL "$ZIP_URL" -o "$TEMP_DIR/easytier_apk.zip" 2>/dev/null || true
-              # 使用 unzip 解压
               unzip -q "$TEMP_DIR/easytier_apk.zip" -d "$TEMP_DIR" 2>/dev/null || true
               find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/easytier/" \; 2>/dev/null || true
               ls "apk/$arch/easytier/" 2>/dev/null | head -5 || echo "  (目录为空)"
@@ -46,13 +50,12 @@ jobs:
           # ==================== 2. 处理 IPK (.zip) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== easytier IPK $arch ==="
-            # 核心修改：利用 test() 模糊匹配含有该架构且以 .zip 结尾的文件（兼容不同版本号，如 x86_64-22.03.7.zip）
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^${arch}-.*\\\\.zip$\")) | .browser_download_url")
+            # 只要文件名里包含该架构，且以 .zip 结尾即可，不再限制必须由架构开头
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"${arch}.*\\.zip$\")) | .browser_download_url")
 
             if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
               curl -sL "$ZIP_URL" -o "$TEMP_DIR/easytier_ipk.zip" 2>/dev/null || true
-              # 使用 unzip 解压
               unzip -q "$TEMP_DIR/easytier_ipk.zip" -d "$TEMP_DIR" 2>/dev/null || true
               find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/easytier/" \; 2>/dev/null || true
               ls "ipk/$arch/easytier/" 2>/dev/null | head -5 || echo "  (目录为空)"
