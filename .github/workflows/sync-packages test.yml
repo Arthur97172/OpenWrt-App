@@ -16,42 +16,46 @@ jobs:
         uses: actions/checkout@v4
 
 
-      - name: Download and sync lucky packages
+      - name: Download and sync easytier packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-lucky/releases/latest")
+          RESPONSE=$(curl -sL "https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest")
 
-          mkdir -p apk/x86_64/lucky apk/aarch64_cortex-a53/lucky apk/aarch64_generic/lucky
-          mkdir -p ipk/x86_64/lucky ipk/aarch64_cortex-a53/lucky ipk/aarch64_generic/lucky
-          rm -f apk/*/lucky/* ipk/*/lucky/* 2>/dev/null || true
+          mkdir -p apk/x86_64/easytier apk/aarch64_cortex-a53/easytier apk/aarch64_generic/easytier
+          mkdir -p ipk/x86_64/easytier ipk/aarch64_cortex-a53/easytier ipk/aarch64_generic/easytier
+          rm -f apk/*/easytier/* ipk/*/easytier/* 2>/dev/null || true
 
-          # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
+          # ==================== 1. 处理 APK (.zip) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== lucky APK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+            echo "=== easytier APK $arch ==="
+            # 匹配格式如: x86_64-SNAPSHOT.zip
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^${arch}-SNAPSHOT\\\\.zip$\")) | .browser_download_url")
 
-            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+            if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
-              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/lucky.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/lucky.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/lucky/" \; 2>/dev/null || true
-              ls "apk/$arch/lucky/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              curl -sL "$ZIP_URL" -o "$TEMP_DIR/easytier_apk.zip" 2>/dev/null || true
+              # 使用 unzip 解压
+              unzip -q "$TEMP_DIR/easytier_apk.zip" -d "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/easytier/" \; 2>/dev/null || true
+              ls "apk/$arch/easytier/" 2>/dev/null | head -5 || echo "  (目录为空)"
               rm -rf "$TEMP_DIR" 2>/dev/null || true
             else
               echo "  未找到 APK"
             fi
           done
 
-          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
+          # ==================== 2. 处理 IPK (.zip) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== lucky IPK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+            echo "=== easytier IPK $arch ==="
+            # 核心修改：利用 test() 模糊匹配含有该架构且以 .zip 结尾的文件（兼容不同版本号，如 x86_64-22.03.7.zip）
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^${arch}-.*\\\\.zip$\")) | .browser_download_url")
 
-            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+            if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
-              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/lucky.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/lucky.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/lucky/" \; 2>/dev/null || true
-              ls "ipk/$arch/lucky/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              curl -sL "$ZIP_URL" -o "$TEMP_DIR/easytier_ipk.zip" 2>/dev/null || true
+              # 使用 unzip 解压
+              unzip -q "$TEMP_DIR/easytier_ipk.zip" -d "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/easytier/" \; 2>/dev/null || true
+              ls "ipk/$arch/easytier/" 2>/dev/null | head -5 || echo "  (目录为空)"
               rm -rf "$TEMP_DIR" 2>/dev/null || true
             else
               echo "  未找到 IPK"
