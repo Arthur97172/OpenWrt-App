@@ -582,10 +582,11 @@ jobs:
           mkdir -p ipk/x86_64/nikki ipk/aarch64_cortex-a53/nikki ipk/aarch64_generic/nikki
           rm -f apk/*/nikki/* ipk/*/nikki/* 2>/dev/null || true
 
-          # 下载并解压 apk (25.12.tar.gz)
+          # ==================== 1. 下载并解压 APK (25.12) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== nikki APK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r --arg a "$arch" '.assets[] | select(.name | test("nikki_" + $a + "-openwrt-25\\.12\\.tar\\.gz")) | .browser_download_url')
+            # 采用安全的 select 和 contains 组合，精准抓取 25.12 的 tar.gz
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[]? | select(.name | contains(\"nikki_${arch}-openwrt-25.12.tar.gz\")) | .browser_download_url" 2>/dev/null)
 
             if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
@@ -599,10 +600,11 @@ jobs:
             fi
           done
 
-          # 下载并解压 ipk (24.10.tar.gz)
+          # ==================== 2. 下载并解压 IPK (24.10) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== nikki IPK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"nikki_${arch}-openwrt-24\\\\.10\\\\.tar\\\\.gz\")) | .browser_download_url")
+            # 采用安全的 select 和 contains 组合，精准抓取 24.10 的 tar.gz
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[]? | select(.name | contains(\"nikki_${arch}-openwrt-24.10.tar.gz\")) | .browser_download_url" 2>/dev/null)
 
             if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
