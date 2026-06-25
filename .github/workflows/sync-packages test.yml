@@ -20,11 +20,6 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest")
 
-          # 调试日志：如果还是找不到，可以在 Actions 日志里直接看到官方的所有文件名
-          echo "=== 远程仓库文件列表 ==="
-          echo "$RESPONSE" | jq -r '.assets[].name'
-          echo "========================"
-
           mkdir -p apk/x86_64/easytier apk/aarch64_cortex-a53/easytier apk/aarch64_generic/easytier
           mkdir -p ipk/x86_64/easytier ipk/aarch64_cortex-a53/easytier ipk/aarch64_generic/easytier
           rm -f apk/*/easytier/* ipk/*/easytier/* 2>/dev/null || true
@@ -32,8 +27,8 @@ jobs:
           # ==================== 1. 处理 APK (.zip) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== easytier APK $arch ==="
-            # 改用 test() 包含匹配，且 (?i) 忽略 snapshot 的大小写
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"${arch}.*(?i)snapshot.*\\.zip$\")) | .browser_download_url")
+            # 修复点：改用简单的 contains 和 test，避开多重反斜杠转义
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and test(\"SNAPSHOT.zip$\")) | .browser_download_url")
 
             if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
@@ -50,8 +45,8 @@ jobs:
           # ==================== 2. 处理 IPK (.zip) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== easytier IPK $arch ==="
-            # 只要文件名里包含该架构，且以 .zip 结尾即可，不再限制必须由架构开头
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"${arch}.*\\.zip$\")) | .browser_download_url")
+            # 修复点：通过同时包含 架构名 且“不包含” SNAPSHOT 来精准锁定 IPK 压缩包
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and (contains(\"SNAPSHOT\") | not) and test(\".zip$\")) | .browser_download_url")
 
             if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
