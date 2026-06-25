@@ -18,42 +18,47 @@ jobs:
 
       - name: Download and sync easytier packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/EasyTier/luci-app-easytier/releases/latest")
+          RESPONSE=$(curl -sL "https://api.github.com/repos/nikkinikki-org/OpenWrt-nikki/releases/latest")
 
-          mkdir -p apk/x86_64/easytier apk/aarch64_cortex-a53/easytier apk/aarch64_generic/easytier
-          mkdir -p ipk/x86_64/easytier ipk/aarch64_cortex-a53/easytier ipk/aarch64_generic/easytier
-          rm -f apk/*/easytier/* ipk/*/easytier/* 2>/dev/null || true
+          # 调试日志：打印一下 API 返回的信息，方便排查仓库是否真的存在 Release
+          echo "=== API 返回状态检查 ==="
+          echo "$RESPONSE" | jq -r '.message // "成功获取到 Release 数据"'
+          echo "========================"
 
-          # ==================== 1. 处理 APK (.zip) ====================
+          mkdir -p apk/x86_64/nikki apk/aarch64_cortex-a53/nikki apk/aarch64_generic/nikki
+          mkdir -p ipk/x86_64/nikki ipk/aarch64_cortex-a53/nikki ipk/aarch64_generic/nikki
+          rm -f apk/*/nikki/* ipk/*/nikki/* 2>/dev/null || true
+
+          # ==================== 1. 下载并解压 APK (25.12) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== easytier APK $arch ==="
-            # 修复点：改用简单的 contains 和 test，避开多重反斜杠转义
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and test(\"SNAPSHOT.zip$\")) | .browser_download_url")
+            echo "=== nikki APK $arch ==="
+            # 改用 .?assets[] 容错，并使用 contains 组合匹配
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r "..?assets[]? | select(.name | contains(\"nikki_${arch}\") and contains(\"25.12\") and contains(\".tar.gz\")) | .browser_download_url" 2>/dev/null)
 
-            if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
-              curl -sL "$ZIP_URL" -o "$TEMP_DIR/easytier_apk.zip" 2>/dev/null || true
-              unzip -q "$TEMP_DIR/easytier_apk.zip" -d "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/easytier/" \; 2>/dev/null || true
-              ls "apk/$arch/easytier/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/nikki.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/nikki.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/nikki/" \; 2>/dev/null || true
+              ls "apk/$arch/nikki/" 2>/dev/null | head -5 || echo "  (目录为空)"
               rm -rf "$TEMP_DIR" 2>/dev/null || true
             else
               echo "  未找到 APK"
             fi
           done
 
-          # ==================== 2. 处理 IPK (.zip) ====================
+          # ==================== 2. 下载并解压 IPK (24.10) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== easytier IPK $arch ==="
-            # 修复点：通过同时包含 架构名 且“不包含” SNAPSHOT 来精准锁定 IPK 压缩包
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and (contains(\"SNAPSHOT\") | not) and test(\".zip$\")) | .browser_download_url")
+            echo "=== nikki IPK $arch ==="
+            # 改用 .?assets[] 容错，并使用 contains 组合匹配
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r "..?assets[]? | select(.name | contains(\"nikki_${arch}\") and contains(\"24.10\") and contains(\".tar.gz\")) | .browser_download_url" 2>/dev/null)
 
-            if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
-              curl -sL "$ZIP_URL" -o "$TEMP_DIR/easytier_ipk.zip" 2>/dev/null || true
-              unzip -q "$TEMP_DIR/easytier_ipk.zip" -d "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/easytier/" \; 2>/dev/null || true
-              ls "ipk/$arch/easytier/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/nikki.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/nikki.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/nikki/" \; 2>/dev/null || true
+              ls "ipk/$arch/nikki/" 2>/dev/null | head -5 || echo "  (目录为空)"
               rm -rf "$TEMP_DIR" 2>/dev/null || true
             else
               echo "  未找到 IPK"
