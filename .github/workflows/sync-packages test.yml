@@ -1,0 +1,89 @@
+name: Sync OpenWrt Packages Test
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # 每周日凌晨2点执行
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync-packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      - name: Download and sync lucky packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-lucky/releases/latest")
+
+          mkdir -p apk/x86_64/lucky apk/aarch64_cortex-a53/lucky apk/aarch64_generic/lucky
+          mkdir -p ipk/x86_64/lucky ipk/aarch64_cortex-a53/lucky ipk/aarch64_generic/lucky
+          rm -f apk/*/lucky/* ipk/*/lucky/* 2>/dev/null || true
+
+          # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== lucky APK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/lucky.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/lucky.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/lucky/" \; 2>/dev/null || true
+              ls "apk/$arch/lucky/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 APK"
+            fi
+          done
+
+          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== lucky IPK $arch ==="
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
+
+            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
+              TEMP_DIR=$(mktemp -d)
+              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/lucky.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/lucky.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
+              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/lucky/" \; 2>/dev/null || true
+              ls "ipk/$arch/lucky/" 2>/dev/null | head -5 || echo "  (目录为空)"
+              rm -rf "$TEMP_DIR" 2>/dev/null || true
+            else
+              echo "  未找到 IPK"
+            fi
+          done
+
+      - name: Commit and push changes
+        run: |
+          # 过滤非 zh-cn 语言包
+          echo "=== 过滤语言包 ==="
+          for dir in apk/*/* ipk/*/*; do
+            [ -d "$dir" ] || continue
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              # 删除 luci-i18n 开头的非 zh-cn 语言包
+              if [[ $(basename "$file") == luci-i18n-* ]] && [[ ! $(basename "$file") =~ -zh-cn ]]; then
+                rm -f "$file"
+                echo "  删除: $(basename "$file")"
+              fi
+            done
+          done
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 OpenWrt 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+            git push || true
+          fi
+
