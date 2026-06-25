@@ -20,11 +20,6 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/nikkinikki-org/OpenWrt-nikki/releases/latest")
 
-          # 调试日志：打印一下 API 返回的信息，方便排查仓库是否真的存在 Release
-          echo "=== API 返回状态检查 ==="
-          echo "$RESPONSE" | jq -r '.message // "成功获取到 Release 数据"'
-          echo "========================"
-
           mkdir -p apk/x86_64/nikki apk/aarch64_cortex-a53/nikki apk/aarch64_generic/nikki
           mkdir -p ipk/x86_64/nikki ipk/aarch64_cortex-a53/nikki ipk/aarch64_generic/nikki
           rm -f apk/*/nikki/* ipk/*/nikki/* 2>/dev/null || true
@@ -32,8 +27,8 @@ jobs:
           # ==================== 1. 下载并解压 APK (25.12) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== nikki APK $arch ==="
-            # 改用 .?assets[] 容错，并使用 contains 组合匹配
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r "..?assets[]? | select(.name | contains(\"nikki_${arch}\") and contains(\"25.12\") and contains(\".tar.gz\")) | .browser_download_url" 2>/dev/null)
+            # 采用安全的 select 和 contains 组合，精准抓取 25.12 的 tar.gz
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[]? | select(.name | contains(\"nikki_${arch}-openwrt-25.12.tar.gz\")) | .browser_download_url" 2>/dev/null)
 
             if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
@@ -50,8 +45,8 @@ jobs:
           # ==================== 2. 下载并解压 IPK (24.10) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== nikki IPK $arch ==="
-            # 改用 .?assets[] 容错，并使用 contains 组合匹配
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r "..?assets[]? | select(.name | contains(\"nikki_${arch}\") and contains(\"24.10\") and contains(\".tar.gz\")) | .browser_download_url" 2>/dev/null)
+            # 采用安全的 select 和 contains 组合，精准抓取 24.10 的 tar.gz
+            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[]? | select(.name | contains(\"nikki_${arch}-openwrt-24.10.tar.gz\")) | .browser_download_url" 2>/dev/null)
 
             if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
