@@ -17,6 +17,6 @@ OpenWrt-App 是一个收集 OpenWrt/ImmortalWrt 路由客户端应用的工具�
 | luci-app-nikki                 | 代理工具               | [nikki](https://github.com/nikkinikki-org/OpenWrt-momo)                                                                     |
 | luci-app-passwall             | 代理工具           | [passwall](https://github.com/Openwrt-Passwall/openwrt-passwall)       |
 | clashoo              | 代理工具                | [clashoo](https://github.com/kenzok8/openwrt-clashoo) |
-| tailscale             | ZeroTier  | [tailscale](https://github.com/tailscale/tailscale)                       |
+| tailscale             | 虚拟组网  | [tailscale](https://github.com/tailscale/tailscale)                       |
 | luci-app-lucky           | Lucky反向代理 | [lucky](https://github.com/gdy666/lucky)   |
 | luci-app-rtp2httpd      |  IPTV 流媒体转发服务器                 | [stackia/rtp2httpd](https://github.com/stackia/rtp2httpd)                 |
