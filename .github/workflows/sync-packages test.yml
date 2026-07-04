@@ -24,7 +24,7 @@ jobs:
           mkdir -p ipk/aarch64_cortex-a53/amlogic ipk/aarch64_generic/amlogic
           rm -f apk/*/amlogic/* ipk/*/amlogic/* 2>/dev/null || true
 
-          # ==================== 1. 下载并解压 APK (25.12) ====================
+          # ==================== 1. 下载 APK (25.12) ====================
           for arch in aarch64_cortex-a53 aarch64_generic; do
             echo "=== amlogic APK $arch ==="
               find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/amlogic/" \; 2>/dev/null || true
@@ -35,7 +35,7 @@ jobs:
             fi
           done
 
-          # ==================== 2. 下载并解压 IPK (24.10) ====================
+          # ==================== 2. 下载 IPK (24.10) ====================
           for arch inx86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== amlogic IPK $arch ==="
               find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/nikki/" \; 2>/dev/null || true
