@@ -13,6 +13,7 @@
 | luci-app-bandix-plus | Bandix-plus流量监控 | [bandix-plus](https://github.com/timsaya/luci-app-bandix-plus) |
 | luci-app-clashoo | clashoo代理 | [clashoo](https://github.com/kenzok8/openwrt-clashoo) |
 | luci-app-daede | daede代理 | [daede](https://github.com/kenzok8/openwrt-daede) |
+| luci-app-easytier | easytier内网穿透 | [easytier](https://github.com/EasyTier/luci-app-easytier) |
 | luci-app-easytier | easytier内网穿透 | [easytier]([https://github.com/EasyTier/luci-app-easytier) |
 | luci-app-lucky | Lucky反向代理 | [lucky](https://github.com/sirpdboy/luci-app-lucky) |
 | luci-app-mosdns | Mosnds DNS转发器 | [mosdns](https://github.com/sbwml/luci-app-mosdns) |
