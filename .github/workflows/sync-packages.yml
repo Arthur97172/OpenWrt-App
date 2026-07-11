@@ -15,6 +15,72 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download and sync adguardhome packages
+        run: |
+          # 1. 统一创建目录并初始化（只在这里清空一次，防止后面的下载被覆盖删除）
+          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_generic/adguardhome
+          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
+          rm -f apk/*/adguardhome/* ipk/*/adguardhome/* 2>/dev/null || true
+
+          # ==========================================
+          # 第一部分：获取 openwrt-adguardhome 仓库最新包
+          # ==========================================
+          echo ">>> 正在同步 openwrt-adguardhome 仓库..."
+          RESPONSE1=$(curl -sL "https://api.github.com/repos/xiaoxiao29/luci-app-adguardhome/releases/latest")
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== adguardhome(1) $arch ==="
+
+            # 架构特定的 apk (25.12+)
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 apk (25.12+ 且没有架构后的通用包)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+              fi
+            done
+
+            # 通用的 apk (_all 格式) (25.12+)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+              fi
+            done
+
+            # 架构特定的 ipk (24.10)
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("24.10") and endswith(".ipk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "ipk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式) (24.10)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("24.10")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "ipk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+              fi
+            done
+          done
+
       - name: Download and sync run packages
         run: |
           # 1. 创建目标目录并清理旧文件
