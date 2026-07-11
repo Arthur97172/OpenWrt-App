@@ -22,7 +22,7 @@ jobs:
           RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
 
           # 核心安全预检
-          if [ -z "$RESPONSE" ] || ! echo "$RESPONSE" | jq -e '.assets' >/dev/null 2>&1; then
+          if [ -z "$RESPONSE_CORE" ] || ! echo "$RESPONSE" | jq -e '.assets' >/dev/null 2>&1; then
             echo "❌ 错误: 无法获取合法的 Release 数据，可能触发了限流或仓库路径不正确！"
             echo "$RESPONSE" | head -n 5
             exit 1
@@ -38,7 +38,7 @@ jobs:
             echo "=== adguardhome APK $arch ==="
             
             # 精准匹配：以 "架构名-openwrt-25.12.tar.gz" 结尾的文件
-            URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-25.12.tar.gz")) | .browser_download_url' 2>/dev/null)
+            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-25.12.tar.gz")) | .browser_download_url' 2>/dev/null)
 
             if [ -n "$URL" ] && [ "$URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
@@ -59,7 +59,7 @@ jobs:
             echo "=== adguardhome IPK $arch ==="
             
             # 精准匹配：以 "架构名-openwrt-24.10.tar.gz" 结尾的文件
-            URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-24.10.tar.gz")) | .browser_download_url' 2>/dev/null)
+            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-24.10.tar.gz")) | .browser_download_url' 2>/dev/null)
 
             if [ -n "$URL" ] && [ "$URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
