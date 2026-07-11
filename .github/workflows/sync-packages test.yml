@@ -15,63 +15,62 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
       - name: Download and sync adguardhome packages
         run: |
           echo ">>> 正在同步 openwrt-adguardhome 仓库..."
-          RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
+
+          # ==================== 1. 获取最新 Release ====================
+          RESPONSE_CORE=$(curl -sL -H "User-Agent: OpenWrt-Sync-Script" \
+            "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
 
           # 核心安全预检
-          if [ -z "$RESPONSE_CORE" ] || ! echo "$RESPONSE" | jq -e '.assets' >/dev/null 2>&1; then
-            echo "❌ 错误: 无法获取合法的 Release 数据，可能触发了限流或仓库路径不正确！"
-            echo "$RESPONSE" | head -n 5
+          if [ -z "$RESPONSE_CORE" ] || [ "$RESPONSE_CORE" = "null" ]; then
+            echo "❌ 错误: curl 返回空，可能网络问题"
             exit 1
           fi
 
+          if ! echo "$RESPONSE_CORE" | jq -e '.assets' >/dev/null 2>&1; then
+            echo "❌ 错误: 无法获取合法的 Release 数据，可能触发了限流或仓库路径不正确！"
+            echo "$RESPONSE_CORE" | head -n 15
+            exit 1
+          fi
+
+          echo "✅ 成功获取 Release 数据"
+
           # 2. 统一初始化目录
-          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_generic/adguardhome
-          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
+          mkdir -p apk/x86_64/adguardhome \
+                  apk/aarch64_cortex-a53/adguardhome \
+                  apk/aarch64_generic/adguardhome
+
+          mkdir -p ipk/x86_64/adguardhome \
+                  ipk/aarch64_cortex-a53/adguardhome \
+                  ipk/aarch64_generic/adguardhome
+
           rm -f apk/*/adguardhome/* ipk/*/adguardhome/* 2>/dev/null || true
 
-          # ==================== 1. 处理 APK (25.12 方案) ====================
+          # ==================== 3. 处理 APK (25.12 方案) ====================
+          echo "=== 处理 APK (25.12) ==="
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== adguardhome APK $arch ==="
-            
-            # 精准匹配：以 "架构名-openwrt-25.12.tar.gz" 结尾的文件
-            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-25.12.tar.gz")) | .browser_download_url' 2>/dev/null)
+
+            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '
+              .assets[] | select(.name == ($arch + "-openwrt-25.12.tar.gz")) | .browser_download_url
+            ' 2>/dev/null)
 
             if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+              echo "  下载: $URL"
               TEMP_DIR=$(mktemp -d)
-              curl -sL "$URL" -o "$TEMP_DIR/adguardhome_apk.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/adguardhome_apk.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              
-              # 捞出解压后的 .apk 文件
-              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/adguardhome/" \; 2>/dev/null || true
-              ls "apk/$arch/adguardhome/" 2>/dev/null | head -5 || echo "  (目录为空)"
-              rm -rf "$TEMP_DIR" 2>/dev/null || true
+              curl -sL -H "User-Agent: OpenWrt-Sync-Script" "$URL" -o "$TEMP_DIR/adguardhome_apk.tar.gz"
+
+              if tar -xzf "$TEMP_DIR/adguardhome_apk.tar.gz" -C "$TEMP_DIR" 2>/dev/null; then
+                find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/adguardhome/" \; 2>/dev/null || true
+                echo "  提取完成: $(ls "apk/$arch/adguardhome/" 2>/dev/null | wc -l) 个 .apk 文件"
+              else
+                echo "  解压失败"
+              fi
+              rm -rf "$TEMP_DIR"
             else
               echo "  未找到 APK 归档包"
-            fi
-          done
-
-          # ==================== 2. 处理 IPK (24.10 方案) ====================
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== adguardhome IPK $arch ==="
-            
-            # 精准匹配：以 "架构名-openwrt-24.10.tar.gz" 结尾的文件
-            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-24.10.tar.gz")) | .browser_download_url' 2>/dev/null)
-
-            if [ -n "$URL" ] && [ "$URL" != "null" ]; then
-              TEMP_DIR=$(mktemp -d)
-              curl -sL "$URL" -o "$TEMP_DIR/adguardhome_ipk.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/adguardhome_ipk.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              
-              # 捞出解压后的 .ipk 文件
-              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/adguardhome/" \; 2>/dev/null || true
-              ls "ipk/$arch/adguardhome/" 2>/dev/null | head -5 || echo "  (目录为空)"
-              rm -rf "$TEMP_DIR" 2>/dev/null || true
-            else
-              echo "  未找到 IPK 归档包"
             fi
           done
  
