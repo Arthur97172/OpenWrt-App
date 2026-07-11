@@ -45,8 +45,8 @@ jobs:
           # ==================== 2. 处理 IPK (.zip) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== adguardhome IPK $arch ==="
-            # 修复点：通过同时包含 架构名 且“不包含” SNAPSHOT 来精准锁定 IPK 压缩包
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and (contains(\"SNAPSHOT\") | not) and test(\".zip$\")) | .browser_download_url")
+            # 修复点：通过同时包含 架构名 且“不包含” 25.12 来精准锁定 IPK 压缩包
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and (contains(\"25.12\") | not) and test(\".zip$\")) | .browser_download_url")
 
             if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
