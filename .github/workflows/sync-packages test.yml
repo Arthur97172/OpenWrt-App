@@ -61,7 +61,7 @@ jobs:
               fi
             done
 
-            # 架构特定的 ipk (23.05-24.10)
+            # 架构特定的 ipk (24.10)
             for arch_variant in "$arch"; do
               for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("24.10") and endswith(".ipk")) | .browser_download_url'); do
                 if [ -n "$url" ] && [ "$url" != "null" ]; then
@@ -72,7 +72,7 @@ jobs:
               done
             done
 
-            # 通用的 ipk (_all 格式) (23.05-24.10)
+            # 通用的 ipk (_all 格式) (24.10)
             for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("24.10")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
                 ORIG_NAME=$(basename "$url")
