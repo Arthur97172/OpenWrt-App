@@ -17,68 +17,87 @@ jobs:
 
       - name: Download and sync adguardhome packages
         run: |
-          # 1. 统一创建目录并初始化（只在这里清空一次，防止后面的下载被覆盖删除）
-          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_generic/adguardhome
-          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
+          echo ">>> 正在同步 openwrt-adguardhome 仓库..."
+
+          # ==================== 1. 获取最新 Release ====================
+          RESPONSE_CORE=$(curl -sL -H "User-Agent: OpenWrt-Sync-Script" \
+            "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
+
+          # 核心安全预检
+          if [ -z "$RESPONSE_CORE" ] || [ "$RESPONSE_CORE" = "null" ]; then
+            echo "❌ 错误: curl 返回空，可能网络问题"
+            exit 1
+          fi
+
+          if ! echo "$RESPONSE_CORE" | jq -e '.assets' >/dev/null 2>&1; then
+            echo "❌ 错误: 无法获取合法的 Release 数据，可能触发了限流或仓库路径不正确！"
+            echo "$RESPONSE_CORE" | head -n 15
+            exit 1
+          fi
+
+          echo "✅ 成功获取 Release 数据"
+
+          # 2. 统一初始化目录
+          mkdir -p apk/x86_64/adguardhome \
+                  apk/aarch64_cortex-a53/adguardhome \
+                  apk/aarch64_generic/adguardhome
+
+          mkdir -p ipk/x86_64/adguardhome \
+                  ipk/aarch64_cortex-a53/adguardhome \
+                  ipk/aarch64_generic/adguardhome
+
           rm -f apk/*/adguardhome/* ipk/*/adguardhome/* 2>/dev/null || true
 
-          # ==========================================
-          # 第一部分：获取 openwrt-adguardhome 仓库最新包
-          # ==========================================
-          echo ">>> 正在同步 openwrt-adguardhome 仓库..."
-          RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/xiaoxiao29/luci-app-adguardhome/releases/latest")
-
+          # ==================== 3. 处理 APK (25.12 方案) ====================
+          echo "=== 处理 APK (25.12) ==="
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== adguardhome(1) $arch ==="
+            echo "=== adguardhome APK $arch ==="
 
-            # 架构特定的 apk (25.12+)
-            for arch_variant in "$arch"; do
-              for url in $(echo "$RESPONSE_CORE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
-                if [ -n "$url" ] && [ "$url" != "null" ]; then
-                  ORIG_NAME=$(basename "$url")
-                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                  curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
-                fi
-              done
-            done
+            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '
+              .assets[] | select(.name == ($arch + "-openwrt-25.12.tar.gz")) | .browser_download_url
+            ' 2>/dev/null)
 
-            # 通用的 apk (25.12+ 且没有架构后的通用包)
-            for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                ORIG_NAME=$(basename "$url")
-                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+            if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+              echo "  下载: $URL"
+              TEMP_DIR=$(mktemp -d)
+              curl -sL -H "User-Agent: OpenWrt-Sync-Script" "$URL" -o "$TEMP_DIR/adguardhome_apk.tar.gz"
+
+              if tar -xzf "$TEMP_DIR/adguardhome_apk.tar.gz" -C "$TEMP_DIR" 2>/dev/null; then
+                find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/adguardhome/" \; 2>/dev/null || true
+                echo "  提取完成: $(ls "apk/$arch/adguardhome/" 2>/dev/null | wc -l) 个 .apk 文件"
+              else
+                echo "  解压失败"
               fi
-            done
+              rm -rf "$TEMP_DIR"
+            else
+              echo "  未找到 APK 归档包"
+            fi
+          done
 
-            # 通用的 apk (_all 格式) (25.12+)
-            for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                ORIG_NAME=$(basename "$url")
-                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+          # ==================== 4. 处理 IPK (24.10 方案) ====================
+          echo "=== 处理 IPK (24.10) ==="
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== adguardhome IPK $arch ==="
+
+            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '
+              .assets[] | select(.name == ($arch + "-openwrt-24.10.tar.gz")) | .browser_download_url
+            ' 2>/dev/null)
+
+            if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+              echo "  下载: $URL"
+              TEMP_DIR=$(mktemp -d)
+              curl -sL -H "User-Agent: OpenWrt-Sync-Script" "$URL" -o "$TEMP_DIR/adguardhome_ipk.tar.gz"
+
+              if tar -xzf "$TEMP_DIR/adguardhome_ipk.tar.gz" -C "$TEMP_DIR" 2>/dev/null; then
+                find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/adguardhome/" \; 2>/dev/null || true
+                echo "  提取完成: $(ls "ipk/$arch/adguardhome/" 2>/dev/null | wc -l) 个 .ipk 文件"
+              else
+                echo "  解压失败"
               fi
-            done
-
-            # 架构特定的 ipk (24.10)
-            for arch_variant in "$arch"; do
-              for url in $(echo "$RESPONSE_CORE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("24.10") and endswith(".ipk")) | .browser_download_url'); do
-                if [ -n "$url" ] && [ "$url" != "null" ]; then
-                  ORIG_NAME=$(basename "$url")
-                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                  curl -sL "$url" -o "ipk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
-                fi
-              done
-            done
-
-            # 通用的 ipk (_all 格式) (24.10)
-            for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("24.10")) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                ORIG_NAME=$(basename "$url")
-                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
-                curl -sL "$url" -o "ipk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
-              fi
-            done
+              rm -rf "$TEMP_DIR"
+            else
+              echo "  未找到 IPK 归档包"
+            fi
           done
 
       - name: Download and sync run packages
