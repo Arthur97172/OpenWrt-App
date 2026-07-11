@@ -16,59 +16,70 @@ jobs:
         uses: actions/checkout@v4
 
 
-      - name: Download and sync run packages
+      - name: Download and sync adguardhome packages
         run: |
-          # 1. 创建目标目录并清理旧文件
-          mkdir -p apk/x86_64/run apk/aarch64_cortex-a53/run apk/aarch64_generic/run
-          mkdir -p ipk/x86_64/run ipk/aarch64_cortex-a53/run ipk/aarch64_generic/run
-          rm -f apk/*/run/* ipk/*/run/* 2>/dev/null || true
+          # 1. 统一创建目录并初始化（只在这里清空一次，防止后面的下载被覆盖删除）
+          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_generic/adguardhome
+          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
+          rm -f apk/*/adguardhome/* ipk/*/adguardhome/* 2>/dev/null || true
 
-          # =================================================================
-          # 2. 下载 run 相关包
-          # =================================================================
-          echo "🌐 正在获取 run 内核及面板包最新 Release..."
-          RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/wukongdaily/luci-app-run/releases/latest")
+          # ==========================================
+          # 第一部分：获取 openwrt-adguardhome 仓库最新包
+          # ==========================================
+          echo ">>> 正在同步 openwrt-adguardhome 仓库..."
+          RESPONSE1=$(curl -sL "https://api.github.com/repos/xiaoxiao29/luci-app-adguardhome/releases/latest")
 
-          # 提取所有资产链接
-          for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | .browser_download_url'); do
-            if [ -n "$url" ]; then
-              filename=$(basename "$url")
-              
-              # 判断是 apk 还是 ipk 决定主目录
-              if [[ "$filename" == *".apk" ]]; then
-                type_dir="apk"
-              elif [[ "$filename" == *".ipk" ]]; then
-                type_dir="ipk"
-              else
-                continue # 忽略其他格式的文件
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== adguardhome(1) $arch ==="
+
+            # 架构特定的 apk (25.12+)
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 apk (25.12+ 且没有架构后的通用包)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
               fi
+            done
 
-              # ---------------- 优先判断：通用面板与语言包 ----------------
-              if [[ "$filename" == *"luci-app-"* ]] || [[ "$filename" == *"luci-i18n-"* ]] || [[ "$filename" == *"_all"* ]]; then
-                # 面板包、语言包或明确标记 _all 的包，放行到所有架构
-                for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-                  curl -sL "$url" -o "$type_dir/$arch/run/$filename" 2>/dev/null || true
-                done
-                echo "  🎯 Universal: $filename -> 全架构复制"
-
-              # ---------------- 精准微架构匹配 (针对内核/二进制包) ----------------
-              elif [[ "$filename" == *"x86_64"* ]]; then
-                curl -sL "$url" -o "$type_dir/x86_64/run/$filename" 2>/dev/null || true
-                echo "  🎯 Core: $filename -> $type_dir/x86_64/run/"
-
-              elif [[ "$filename" == *"aarch64_cortex-a53"* ]]; then
-                curl -sL "$url" -o "$type_dir/aarch64_cortex-a53/run/$filename" 2>/dev/null || true
-                echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a53/run/"
-
-              elif [[ "$filename" == *"aarch64_generic"* ]]; then
-                curl -sL "$url" -o "$type_dir/aarch64_generic/run/$filename" 2>/dev/null || true
-                echo "  🎯 Core: $filename -> $type_dir/aarch64_generic/run/"
-
-              else
-                # 自动跳过不属于你目标架构的文件（比如 cortex-a72, cortex-a76 等内核包）
-                echo "  ↷ 跳过无关架构文件: $filename"
+            # 通用的 apk (_all 格式) (25.12+)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "apk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
               fi
-            fi
+            done
+
+            # 架构特定的 ipk (23.05-24.10)
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("24.10") and endswith(".ipk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "ipk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式) (23.05-24.10)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("24.10")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "ipk/$arch/adguardhome/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+              fi
+            done
           done
 
           
