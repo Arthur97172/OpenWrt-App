@@ -12,6 +12,7 @@
 | luci-app-bandix | Bandix流量监控 | [bandix](https://github.com/timsaya/luci-app-bandix) |
 | luci-app-bandix-plus | Bandix-plus流量监控 | [bandix-plus](https://github.com/timsaya/luci-app-bandix-plus) |
 | luci-app-clashoo | clashoo代理 | [clashoo](https://github.com/kenzok8/openwrt-clashoo) |
+| luci-app-cpu-status | cpu-status插件 | [cpu-status](https://github.com/OneNAS-space/luci-app-cpu-status) |
 | luci-app-daede | daede代理 | [daede](https://github.com/kenzok8/openwrt-daede) |
 | luci-app-easytier | easytier内网穿透 | [easytier](https://github.com/EasyTier/luci-app-easytier) |
 | luci-app-lucky | Lucky反向代理 | [lucky](https://github.com/sirpdboy/luci-app-lucky) |
