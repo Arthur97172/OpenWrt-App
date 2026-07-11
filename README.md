@@ -5,7 +5,7 @@
 
 | 软件名称                  | 简介 / 功能描述                        | 来源 / 项目地址                                                                           |
 | --------------------- | -------------------------------- | ----------------------------------------------------------------------------------- |
-| luci-app-adguardhome | adguardhome广告拦截 | [adguardhome](https://github.com/xiaoxiao29/luci-app-adguardhome) |
+| luci-app-adguardhome | adguardhome广告拦截 | [adguardhome](https://github.com/MomoFlora/luci-app-adguardhome) |
 | luci-app-amlogic | 晶晨宝盒(ARM only) | [amlogic](https://github.com/ophub/luci-app-amlogic) |
 | luci-theme-argon | argon主题 | [argon](https://github.com/jerrykuku/luci-theme-argon) |
 | luci-theme-aurora | aurora主题 | [aurora](https://github.com/eamonxg/luci-theme-aurora) |
