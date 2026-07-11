@@ -28,7 +28,7 @@ jobs:
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== adguardhome APK $arch ==="
             # 修复点：改用简单的 contains 和 test，避开多重反斜杠转义
-            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and test(\"25.12.zip$\")) | .browser_download_url")
+            ZIP_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | contains(\"${arch}-\") and test(\"25.12.tar.gz$\")) | .browser_download_url")
 
             if [ -n "$ZIP_URL" ] && [ "$ZIP_URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
