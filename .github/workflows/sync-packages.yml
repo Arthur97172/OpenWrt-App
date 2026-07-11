@@ -33,7 +33,7 @@ jobs:
 
             # 架构特定的 apk (25.12+)
             for arch_variant in "$arch"; do
-              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+              for url in $(echo "$RESPONSE_CORE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
                 if [ -n "$url" ] && [ "$url" != "null" ]; then
                   ORIG_NAME=$(basename "$url")
                   [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
@@ -43,7 +43,7 @@ jobs:
             done
 
             # 通用的 apk (25.12+ 且没有架构后的通用包)
-            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
+            for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
                 ORIG_NAME=$(basename "$url")
                 [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
@@ -52,7 +52,7 @@ jobs:
             done
 
             # 通用的 apk (_all 格式) (25.12+)
-            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
+            for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
                 ORIG_NAME=$(basename "$url")
                 [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
@@ -62,7 +62,7 @@ jobs:
 
             # 架构特定的 ipk (24.10)
             for arch_variant in "$arch"; do
-              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("24.10") and endswith(".ipk")) | .browser_download_url'); do
+              for url in $(echo "$RESPONSE_CORE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("24.10") and endswith(".ipk")) | .browser_download_url'); do
                 if [ -n "$url" ] && [ "$url" != "null" ]; then
                   ORIG_NAME=$(basename "$url")
                   [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
@@ -72,7 +72,7 @@ jobs:
             done
 
             # 通用的 ipk (_all 格式) (24.10)
-            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("24.10")) | .browser_download_url'); do
+            for url in $(echo "$RESPONSE_CORE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("24.10")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
                 ORIG_NAME=$(basename "$url")
                 [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
