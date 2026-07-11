@@ -18,12 +18,10 @@ jobs:
 
       - name: Download and sync adguardhome packages
         run: |
-          # 1. 加上鉴权请求头，获取最新的 Release JSON
-          RESPONSE=$(curl -sL \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
+          echo ">>> 正在同步 openwrt-adguardhome 仓库..."
+          RESPONSE1=$(curl -sL "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
 
-          # 核心预检：如果 API 失败，提前拦截，防止 jq 报错崩溃
+          # 核心安全预检
           if [ -z "$RESPONSE" ] || ! echo "$RESPONSE" | jq -e '.assets' >/dev/null 2>&1; then
             echo "❌ 错误: 无法获取合法的 Release 数据，可能触发了限流或仓库路径不正确！"
             echo "$RESPONSE" | head -n 5
@@ -35,26 +33,19 @@ jobs:
           mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
           rm -f apk/*/adguardhome/* ipk/*/adguardhome/* 2>/dev/null || true
 
-          # ==================== 1. 处理 APK (寻找包含架构名的归档包) ====================
+          # ==================== 1. 处理 APK (25.12 方案) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== adguardhome APK $arch ==="
             
-            # 使用 --arg 优雅传参，避开 Shell 转义。匹配：以 架构名 开头，且以 .tar.gz 或 .zip 结尾的文件
-            URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '.assets[] | select(.name | test("^" + $arch + "\\.(tar\\.gz|zip)$")) | .browser_download_url' 2>/dev/null)
+            # 精准匹配：以 "架构名-openwrt-25.12.tar.gz" 结尾的文件
+            URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-25.12.tar.gz")) | .browser_download_url' 2>/dev/null)
 
             if [ -n "$URL" ] && [ "$URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
-              FILE_NAME=$(basename "$URL")
-              curl -sL "$URL" -o "$TEMP_DIR/$FILE_NAME" 2>/dev/null || true
+              curl -sL "$URL" -o "$TEMP_DIR/adguardhome_apk.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/adguardhome_apk.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
               
-              # 【智能解压】根据后缀自动选择 tar 或 unzip
-              if [[ "$FILE_NAME" == *.tar.gz ]]; then
-                tar -xzf "$TEMP_DIR/$FILE_NAME" -C "$TEMP_DIR" 2>/dev/null || true
-              elif [[ "$FILE_NAME" == *.zip ]]; then
-                unzip -q "$TEMP_DIR/$FILE_NAME" -d "$TEMP_DIR" 2>/dev/null || true
-              fi
-              
-              # 穿透捞出 .apk 文件
+              # 捞出解压后的 .apk 文件
               find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/adguardhome/" \; 2>/dev/null || true
               ls "apk/$arch/adguardhome/" 2>/dev/null | head -5 || echo "  (目录为空)"
               rm -rf "$TEMP_DIR" 2>/dev/null || true
@@ -63,26 +54,19 @@ jobs:
             fi
           done
 
-          # ==================== 2. 处理 IPK (寻找格式如 openwrt-24.10-架构.tar.gz/.zip) ====================
+          # ==================== 2. 处理 IPK (24.10 方案) ====================
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
             echo "=== adguardhome IPK $arch ==="
             
-            # 使用 --arg 匹配：以 openwrt-24.10-架构名 开头，且以 .tar.gz 或 .zip 结尾的文件
-            URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '.assets[] | select(.name | test("^openwrt-24\\.10-" + $arch + "\\.(tar\\.gz|zip)$")) | .browser_download_url' 2>/dev/null)
+            # 精准匹配：以 "架构名-openwrt-24.10.tar.gz" 结尾的文件
+            URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '.assets[] | select(.name == ($arch + "-openwrt-24.10.tar.gz")) | .browser_download_url' 2>/dev/null)
 
             if [ -n "$URL" ] && [ "$URL" != "null" ]; then
               TEMP_DIR=$(mktemp -d)
-              FILE_NAME=$(basename "$URL")
-              curl -sL "$URL" -o "$TEMP_DIR/$FILE_NAME" 2>/dev/null || true
+              curl -sL "$URL" -o "$TEMP_DIR/adguardhome_ipk.tar.gz" 2>/dev/null || true
+              tar -xzf "$TEMP_DIR/adguardhome_ipk.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
               
-              # 【智能解压】根据后缀自动选择 tar 或 unzip
-              if [[ "$FILE_NAME" == *.tar.gz ]]; then
-                tar -xzf "$TEMP_DIR/$FILE_NAME" -C "$TEMP_DIR" 2>/dev/null || true
-              elif [[ "$FILE_NAME" == *.zip ]]; then
-                unzip -q "$TEMP_DIR/$FILE_NAME" -d "$TEMP_DIR" 2>/dev/null || true
-              fi
-              
-              # 穿透捞出 .ipk 文件
+              # 捞出解压后的 .ipk 文件
               find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/adguardhome/" \; 2>/dev/null || true
               ls "ipk/$arch/adguardhome/" 2>/dev/null | head -5 || echo "  (目录为空)"
               rm -rf "$TEMP_DIR" 2>/dev/null || true
