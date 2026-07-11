@@ -22,6 +22,7 @@
 | luci-app-passwall | passwall代理 | [passwall](https://github.com/Openwrt-Passwall/openwrt-passwall) |
 | luci-app-poweroffdevice | 关机插件 | [poweroffdevice](https://github.com/sirpdboy/luci-app-poweroffdevice) |
 | luci-app-rtp2httpd | IPTV 流媒体转发服务器 | [rtp2httpd](https://github.com/stackia/rtp2httpd) |
+| luci-app-run | 插件安装工具 | [run](https://github.com/wukongdaily/luci-app-run) |
 | luci-app-tailscale | tailscale虚拟组网 | [tailscale](https://github.com/tailscale/tailscale) |
 | luci-app-taskplan| taskplan任务计划 |[taskplan](https://github.com/sirpdboy/luci-app-taskplan) |
 
