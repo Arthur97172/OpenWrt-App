@@ -73,6 +73,32 @@ jobs:
               echo "  未找到 APK 归档包"
             fi
           done
+
+          # ==================== 4. 处理 IPK (24.10 方案) ====================
+          echo "=== 处理 IPK (24.10) ==="
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== adguardhome IPK $arch ==="
+
+            URL=$(echo "$RESPONSE_CORE" | jq -r --arg arch "$arch" '
+              .assets[] | select(.name == ($arch + "-openwrt-24.10.tar.gz")) | .browser_download_url
+            ' 2>/dev/null)
+
+            if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+              echo "  下载: $URL"
+              TEMP_DIR=$(mktemp -d)
+              curl -sL -H "User-Agent: OpenWrt-Sync-Script" "$URL" -o "$TEMP_DIR/adguardhome_ipk.tar.gz"
+
+              if tar -xzf "$TEMP_DIR/adguardhome_ipk.tar.gz" -C "$TEMP_DIR" 2>/dev/null; then
+                find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/adguardhome/" \; 2>/dev/null || true
+                echo "  提取完成: $(ls "ipk/$arch/adguardhome/" 2>/dev/null | wc -l) 个 .ipk 文件"
+              else
+                echo "  解压失败"
+              fi
+              rm -rf "$TEMP_DIR"
+            else
+              echo "  未找到 IPK 归档包"
+            fi
+          done
  
       - name: Commit and push changes
         run: |
