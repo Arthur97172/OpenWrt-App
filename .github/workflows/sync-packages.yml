@@ -986,8 +986,8 @@ jobs:
           echo ">>> 正在同步 mosdns 仓库..."
 
           # 获取最新 Release
-          echo "🌐 正在获取 luci-app-mosdns 内核包最新 Release..."
-          RESPONSE=$(curl -sL "https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest")
+          RESPONSE=$(curl -sL -H "User-Agent: OpenWrt-Sync-Script" \
+          "https://api.github.com/repos/sbwml/luci-app-mosdns/releases/latest")
 
           # 核心安全预检
           if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ] || ! echo "$RESPONSE" | jq -e '.assets' >/dev/null 2>&1; then
