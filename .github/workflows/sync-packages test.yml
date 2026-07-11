@@ -19,7 +19,7 @@ jobs:
       - name: Download and sync adguardhome packages
         run: |
           echo ">>> 正在同步 openwrt-adguardhome 仓库..."
-          RESPONSE=$(curl -sL "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
+          RESPONSE_CORE=$(curl -sL "https://api.github.com/repos/MomoFlora/luci-app-adguardhome/releases/latest")
 
           # 核心安全预检
           if [ -z "$RESPONSE" ] || ! echo "$RESPONSE" | jq -e '.assets' >/dev/null 2>&1; then
