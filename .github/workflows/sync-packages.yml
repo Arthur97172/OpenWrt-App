@@ -576,14 +576,13 @@ jobs:
             done
           done
 
-
       - name: Download and sync argon packages
         run: |
           mkdir -p apk/x86_64/argon apk/aarch64_cortex-a53/argon apk/aarch64_generic/argon
           mkdir -p ipk/x86_64/argon ipk/aarch64_cortex-a53/argon ipk/aarch64_generic/argon
           rm -f apk/*/argon/* ipk/*/argon/* 2>/dev/null || true
 
-          # 下载 luci-theme-argon (APK - 最新 release)
+          # 1. 下载 luci-theme-argon (APK - 最新 release)
           echo "=== argon APK (luci-theme-argon) ==="
           THEME=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-theme-argon/releases/latest")
           for url in $(echo "$THEME" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
@@ -592,31 +591,44 @@ jobs:
             done && echo "  $filename"
           done
 
-          # 下载 luci-theme-argon (IPK - 遍历 releases 直到找到)
-          echo "=== argon IPK (luci-theme-argon) ==="
+          # 2. 下载 luci-theme-argon & config (IPK - 从主题仓库获取)
+          echo "=== argon IPK (luci-theme-argon & config) ==="
           RELEASES=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-theme-argon/releases?per_page=10")
           FOUND_IPK=""
           for i in 0 1 2 3 4 5 6 7 8 9; do
             [ -n "$FOUND_IPK" ] && break
             TAG=$(echo "$RELEASES" | jq -r ".[$i].tag_name // empty")
             [ -z "$TAG" ] && break
-            URL=$(echo "$RELEASES" | jq -r ".[$i].assets[] | select(.name | endswith(\".ipk\")) | .browser_download_url")
-            [ -n "$URL" ] && filename=$(basename "$URL") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-              curl -sL "$URL" -o "ipk/$arch/argon/$filename" 2>/dev/null || true
-            done && echo "  $filename ($TAG)" && FOUND_IPK="yes"
+            
+            # 精准筛选：只下载当前 Release 下的 IPK 核心组件，避免抓取到可能存在的历史残留语言包
+            URLS=$(echo "$RELEASES" | jq -r ".[$i].assets[] | select(.name | endswith(\".ipk\") and (contains(\"-zh-cn\") or test(\"luci-theme-argon\") or test(\"luci-app-argon-config\"))) | .browser_download_url")
+            
+            if [ -n "$URLS" ]; then
+              for url in $URLS; do
+                filename=$(basename "$url")
+                for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+                  curl -sL "$url" -o "ipk/$arch/argon/$filename" 2>/dev/null || true
+                done
+                echo "  $filename ($TAG)"
+                FOUND_IPK="yes"
+              done
+            fi
           done
-          [ -z "$FOUND_IPK" ] && echo "  未找到 luci-theme-argon IPK" || true
-
-          # 下载 luci-app-argon-config (IPK - 只保留 zh-cn 语言包)
-          echo "=== argon IPK (luci-app-argon-config) ==="
-          APP=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-app-argon-config/releases/latest")
-          for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".ipk") and (contains("-zh-cn") or test("^luci-app-argon-config"))) | .browser_download_url'); do
-            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-              curl -sL "$url" -o "ipk/$arch/argon/$filename" 2>/dev/null || true
-            done && echo "  $filename"
-          done
-
-
+          
+          # 3. 智能兜底逻辑：只有当上游主题仓库完全没有包含 config 插件时，才去 config 独立仓库抓取最新版
+          if ! ls ipk/x86_64/argon/luci-app-argon-config*.ipk &>/dev/null; then
+            echo "=== 独立仓库兜底：下载 luci-app-argon-config ==="
+            APP=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-app-argon-config/releases/latest")
+            # 【关键修复】：这里加上了版本匹配防护，防止抓到古老的 0.9 语言包
+            for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".ipk") and (contains("-zh-cn") or test("^luci-app-argon-config"))) | .browser_download_url'); do
+              [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+                curl -sL "$url" -o "ipk/$arch/argon/$filename" 2>/dev/null || true
+              done && echo "  $filename (来自独立仓库兜底)"
+            done
+          else
+            echo "=== 已从主题仓库获取最新组件，跳过独立仓库的旧版下载 ==="
+          fi
+          
       - name: Download and sync passwall packages
         run: |
           # 1. 统一创建目录并初始化（只在这里清空一次，防止后面的下载被覆盖删除）
