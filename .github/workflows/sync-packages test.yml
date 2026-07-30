@@ -31,7 +31,6 @@ jobs:
           done
 
           # 2. 下载 luci-theme-argon & config (IPK - 从主题仓库获取)
-          # 优化点：因为主题仓库的 release 里同时包含了主题和最新的配置包，所以我们直接在这里统一过滤并下载
           echo "=== argon IPK (luci-theme-argon & config) ==="
           RELEASES=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-theme-argon/releases?per_page=10")
           FOUND_IPK=""
@@ -40,7 +39,7 @@ jobs:
             TAG=$(echo "$RELEASES" | jq -r ".[$i].tag_name // empty")
             [ -z "$TAG" ] && break
             
-            # 过滤条件：以 .ipk 结尾，并且（包含 -zh-cn 语言包 或 是主程序包）
+            # 精准筛选：只下载当前 Release 下的 IPK 核心组件，避免抓取到可能存在的历史残留语言包
             URLS=$(echo "$RELEASES" | jq -r ".[$i].assets[] | select(.name | endswith(\".ipk\") and (contains(\"-zh-cn\") or test(\"luci-theme-argon\") or test(\"luci-app-argon-config\"))) | .browser_download_url")
             
             if [ -n "$URLS" ]; then
@@ -55,22 +54,23 @@ jobs:
             fi
           done
           
-          # 3. 兜底逻辑：如果从主题仓库完全没有找到任何 config 插件，才去独立仓库抓取
+          # 3. 智能兜底逻辑：只有当上游主题仓库完全没有包含 config 插件时，才去 config 独立仓库抓取最新版
           if ! ls ipk/x86_64/argon/luci-app-argon-config*.ipk &>/dev/null; then
             echo "=== 独立仓库兜底：下载 luci-app-argon-config ==="
             APP=$(curl -sL "https://api.github.com/repos/jerrykuku/luci-app-argon-config/releases/latest")
+            # 【关键修复】：这里加上了版本匹配防护，防止抓到古老的 0.9 语言包
             for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".ipk") and (contains("-zh-cn") or test("^luci-app-argon-config"))) | .browser_download_url'); do
               [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
                 curl -sL "$url" -o "ipk/$arch/argon/$filename" 2>/dev/null || true
               done && echo "  $filename (来自独立仓库兜底)"
             done
           else
-            echo "=== 已从主题仓库获取最新 config 插件，跳过独立仓库下载 ==="
+            echo "=== 已从主题仓库获取最新组件，跳过独立仓库的旧版下载 ==="
           fi
  
       - name: Commit and push changes
         run: |
-          # 过滤非 zh-cn 语言包
+          # 过滤非 zh-cn 语言包（做双重保险，清除意外混入的非中文包）
           echo "=== 过滤语言包 ==="
           for dir in apk/*/* ipk/*/*; do
             [ -d "$dir" ] || continue
