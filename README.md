@@ -27,8 +27,8 @@
 | luci-app-run | 插件安装工具 | [run](https://github.com/wukongdaily/luci-app-run) |
 | luci-app-tailscale | tailscale虚拟组网 | [tailscale](https://github.com/tailscale/tailscale) |
 | luci-app-taskplan| taskplan任务计划 |[taskplan](https://github.com/sirpdboy/luci-app-taskplan) |
-| luci-app-timecontrol| timecontrol上网时间控制 |[taskplan](https://github.com/sirpdboy/luci-app-timecontrol) |
-| luci-app-watchdog| watchdog看门狗 |[taskplan](https://github.com/sirpdboy/luci-app-watchdog) |
+| luci-app-timecontrol| timecontrol上网时间控制 |[timecontrol](https://github.com/sirpdboy/luci-app-timecontrol) |
+| luci-app-watchdog| watchdog看门狗 |[watchdog](https://github.com/sirpdboy/luci-app-watchdog) |
 ### 通过Actions每周运行自动更新！
 
 ### 本仓库的 IPK及APK 文件来自多个项目，版权归原作者。
