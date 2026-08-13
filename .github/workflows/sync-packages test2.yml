@@ -1,4 +1,4 @@
-name: Sync OpenWrt Packages Test
+name: Sync OpenWrt Packages Test2
 
 on:
   workflow_dispatch:  # 允许手动触发
