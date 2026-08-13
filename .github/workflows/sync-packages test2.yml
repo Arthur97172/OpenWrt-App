@@ -1,0 +1,196 @@
+name: Sync OpenWrt Packages Test
+
+on:
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync-packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download and sync passwall packages
+        run: |
+          # 1. 统一创建目录并初始化（只在这里清空一次，防止后面的下载被覆盖删除）
+          mkdir -p apk/x86_64/passwall apk/aarch64_cortex-a53/passwall apk/aarch64_generic/passwall
+          mkdir -p ipk/x86_64/passwall ipk/aarch64_cortex-a53/passwall ipk/aarch64_generic/passwall
+          rm -f apk/*/passwall/* ipk/*/passwall/* 2>/dev/null || true
+
+          # ==========================================
+          # 第一部分：获取 openwrt-passwall 仓库最新包
+          # ==========================================
+          echo ">>> 正在同步 openwrt-passwall 仓库..."
+          RESPONSE1=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall/releases/latest")
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== passwall(1) $arch ==="
+
+            # 架构特定的 apk (25.12+)
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains(".apk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 apk (25.12+ 且没有架构后的通用包)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("^25\\.12\\+.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+              fi
+            done
+
+            # 通用的 apk (_all 格式) (25.12+)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.apk$") and contains("25.12")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  APK: $FILE_NAME"
+              fi
+            done
+
+            # 架构特定的 ipk (23.05-24.10)
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE1" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and contains("23.05-24.10") and endswith(".ipk")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+                fi
+              done
+            done
+
+            # 通用的 ipk (_all 格式) (23.05-24.10)
+            for url in $(echo "$RESPONSE1" | jq -r '.assets[] | select(.name | test("_all\\.ipk$") and contains("23.05-24.10")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  IPK: $FILE_NAME"
+              fi
+            done
+          done
+
+          # ==========================================
+          # 第二部分：获取 openwrt-passwall2 仓库最新包（支持直链 + ZIP解压）
+          # ==========================================
+          echo ">>> 正在同步 openwrt-passwall2 仓库..."
+          RESPONSE2=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall2/releases/latest")
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== passwall(2) $arch ==="
+
+            # ----------------------------------------
+            # 2.1 【直链下载】直接下载暴露在外的 apk 和 ipk 文件
+            # ----------------------------------------
+            # 架构特定的 apk/ipk
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and (endswith(".apk") or endswith(".ipk"))) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  ORIG_NAME=$(basename "$url")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  if [[ "$FILE_NAME" == *.apk ]]; then
+                    curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链->APK: $FILE_NAME"
+                  else
+                    curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链->IPK: $FILE_NAME"
+                  fi
+                fi
+              done
+            done
+
+            # 通用的 apk/ipk (_all 格式)
+            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | test("_all\\.(apk|ipk)$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                ORIG_NAME=$(basename "$url")
+                [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                if [[ "$FILE_NAME" == *.apk ]]; then
+                  curl -sL "$url" -o "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链_all->APK: $FILE_NAME"
+                else
+                  curl -sL "$url" -o "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  直链_all->IPK: $FILE_NAME"
+                fi
+              fi
+            done
+
+            # ----------------------------------------
+            # 2.2 【ZIP解压】下载压缩包并解压提取 apk 和 ipk
+            # ----------------------------------------
+            # 架构特定的 ZIP
+            for arch_variant in "$arch"; do
+              for url in $(echo "$RESPONSE2" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | contains($av) and endswith(".zip")) | .browser_download_url'); do
+                if [ -n "$url" ] && [ "$url" != "null" ]; then
+                  TEMP_DIR=$(mktemp -d)
+                  curl -sL "$url" -o "$TEMP_DIR/pack.zip" 2>/dev/null
+                  unzip -q "$TEMP_DIR/pack.zip" -d "$TEMP_DIR" 2>/dev/null || true
+                  
+                  find "$TEMP_DIR" -type f \( -name "*.apk" -o -name "*.ipk" \) 2>/dev/null | while read -r file; do
+                    ORIG_NAME=$(basename "$file")
+                    [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                    if [[ "$FILE_NAME" == *.apk ]]; then
+                      mv "$file" "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  ZIP->APK: $FILE_NAME"
+                    else
+                      mv "$file" "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  ZIP->IPK: $FILE_NAME"
+                    fi
+                  done
+                  rm -rf "$TEMP_DIR" 2>/dev/null
+                fi
+              done
+            done
+
+            # 通用的 ZIP (_all.zip 或 luci- 开头的通用前端包 zip)
+            for url in $(echo "$RESPONSE2" | jq -r '.assets[] | select(.name | (contains("_all") or test("luci-")) and endswith(".zip")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                TEMP_DIR=$(mktemp -d)
+                curl -sL "$url" -o "$TEMP_DIR/pack.zip" 2>/dev/null
+                unzip -q "$TEMP_DIR/pack.zip" -d "$TEMP_DIR" 2>/dev/null || true
+                
+                find "$TEMP_DIR" -type f \( -name "*.apk" -o -name "*.ipk" \) 2>/dev/null | while read -r file; do
+                  ORIG_NAME=$(basename "$file")
+                  [[ "$ORIG_NAME" == *luci* ]] && FILE_NAME="luci${ORIG_NAME##*luci}" || FILE_NAME="$ORIG_NAME"
+                  if [[ "$FILE_NAME" == *.apk ]]; then
+                    mv "$file" "apk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  通用ZIP->APK: $FILE_NAME"
+                  else
+                    mv "$file" "ipk/$arch/passwall/$FILE_NAME" 2>/dev/null && echo "  通用ZIP->IPK: $FILE_NAME"
+                  fi
+                done
+                rm -rf "$TEMP_DIR" 2>/dev/null
+              fi
+            done
+          done
+ 
+      - name: Commit and push changes
+        run: |
+          # 过滤非 zh-cn 语言包（做双重保险，清除意外混入的非中文包）
+          echo "=== 过滤语言包 ==="
+          for dir in apk/*/* ipk/*/*; do
+            [ -d "$dir" ] || continue
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              if [[ $(basename "$file") == luci-i18n-* ]] && [[ ! $(basename "$file") =~ -zh-cn ]]; then
+                rm -f "$file"
+                echo "  删除非中文语言包: $(basename "$file")"
+              fi
+            done
+          done
+
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add -A
+
+          if git diff --staged --quiet; then
+              echo "没有检测到文件更改，跳过提交"
+            else
+              git diff --staged --stat
+              git commit -m "自动同步 OpenWrt 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+              
+              git pull --rebase origin main || git rebase --abort
+              git push origin main
+            fi
