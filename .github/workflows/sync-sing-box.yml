@@ -21,22 +21,34 @@ jobs:
           mkdir -p ipk/x86_64/sing-box ipk/aarch64_cortex-a53/sing-box ipk/aarch64_generic/sing-box
           rm -f apk/*/sing-box/* ipk/*/sing-box/* 2>/dev/null || true
 
-          # 下载 sing-box (APK & IPK)
           echo "=== sing-box Packages ==="
           RELEASE=$(curl -sL "https://api.github.com/repos/SagerNet/sing-box/releases/latest")
           
-          # 下载 APK 包
-          for url in $(echo "$RELEASE" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
-            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-              curl -sL "$url" -o "apk/$arch/sing-box/$filename" 2>/dev/null || true
-            done && echo "  APK: $filename"
-          done
-
-          # 下载 IPK 包
-          for url in $(echo "$RELEASE" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
-            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-              curl -sL "$url" -o "ipk/$arch/sing-box/$filename" 2>/dev/null || true
-            done && echo "  IPK: $filename"
+          # 遍历所有下载资产
+          echo "$RELEASE" | jq -r '.assets[] | select(.name | endswith(".apk") or endswith(".ipk")) | .browser_download_url' | while read -r url; do
+            [ -z "$url" ] && continue
+            filename=$(basename "$url")
+            
+            # 根据文件名中的特征匹配对应的架构目录
+            if [[ "$filename" == *"openwrt_x86_64"* ]]; then
+              arch="x86_64"
+            elif [[ "$filename" == *"openwrt_aarch64_cortex-a53"* ]]; then
+              arch="aarch64_cortex-a53"
+            elif [[ "$filename" == *"openwrt_aarch64_generic"* ]]; then
+              arch="aarch64_generic"
+            else
+              # 如果有其他架构或者不需要的包，跳过
+              continue
+            fi
+            
+            # 判断是 apk 还是 ipk 并下载到对应文件夹
+            if [[ "$filename" == *.apk ]]; then
+              curl -sL "$url" -o "apk/$arch/sing-box/$filename"
+              echo "  下载 APK [$arch]: $filename"
+            elif [[ "$filename" == *.ipk ]]; then
+              curl -sL "$url" -o "ipk/$arch/sing-box/$filename"
+              echo "  下载 IPK [$arch]: $filename"
+            fi
           done
 
       - name: Commit and push changes
