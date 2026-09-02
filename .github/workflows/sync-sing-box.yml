@@ -1,0 +1,55 @@
+name: Sync Sing-Box Packages
+
+on:
+  schedule:
+    - cron: '0 18 */3 * *'  # 每3日凌晨2点执行
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync-packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download and sync sing-box packages
+        run: |
+          mkdir -p apk/x86_64/sing-box apk/aarch64_cortex-a53/sing-box apk/aarch64_generic/sing-box
+          mkdir -p ipk/x86_64/sing-box ipk/aarch64_cortex-a53/sing-box ipk/aarch64_generic/sing-box
+          rm -f apk/*/sing-box/* ipk/*/sing-box/* 2>/dev/null || true
+
+          # 下载 sing-box (APK & IPK)
+          echo "=== sing-box Packages ==="
+          RELEASE=$(curl -sL "https://api.github.com/repos/SagerNet/sing-box/releases/latest")
+          
+          # 下载 APK 包
+          for url in $(echo "$RELEASE" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+              curl -sL "$url" -o "apk/$arch/sing-box/$filename" 2>/dev/null || true
+            done && echo "  APK: $filename"
+          done
+
+          # 下载 IPK 包
+          for url in $(echo "$RELEASE" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+              curl -sL "$url" -o "ipk/$arch/sing-box/$filename" 2>/dev/null || true
+            done && echo "  IPK: $filename"
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 sing-box 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+            git push || true
+          fi
