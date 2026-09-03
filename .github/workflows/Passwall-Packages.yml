@@ -55,45 +55,42 @@ jobs:
           TARGET="${{ matrix.target }}"
           ARCH="${{ matrix.arch }}"
           
-          # 根据版本与架构精准拼接官方 SDK 文件名
+          # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
             "24.10.6")
-              case "${ARCH}" in
-                "x86_64")
-                  SDK_FILE="immortalwrt-sdk-24.10.6-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-                  ;;
-                "aarch64_generic")
-                  SDK_FILE="immortalwrt-sdk-24.10.6-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-                  ;;
-                "aarch64_cortex-a53")
-                  SDK_FILE="immortalwrt-sdk-24.10.6-bcm27xx-bcm2711_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-                  ;;
-              es:
+              GCC_VER="13.3.0"
               ;;
             "25.12.1")
-              case "${ARCH}" in
-                "x86_64")
-                  SDK_FILE="immortalwrt-sdk-25.12.1-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-                  ;;
-                "aarch64_generic")
-                  SDK_FILE="immortalwrt-sdk-25.12.1-armsr-armv8_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-                  ;;
-                "aarch64_cortex-a53")
-                  SDK_FILE="immortalwrt-sdk-25.12.1-bcm27xx-bcm2711_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
-                  ;;
-              esac
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              # 默认或未来版本的兜底（可按需调整）
+              GCC_VER="14.3.0"
               ;;
           esac
           
-          if [ -z "$SDK_FILE" ]; then
-            echo "Error: Unsupported version (${VER}) or architecture (${ARCH})"
-            exit 1
-          fi
-
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
+          case "${TARGET}" in
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2711")
+              TARGET_STR="bcm27xx-bcm2711"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
+          esac
+          
+          # 完美复刻你发现的命名规律进行拼接
+          SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
           URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
           
           echo "Downloading SDK from: ${URL}"
-          wget -q "${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
           
           tar -xf immortalwrt-sdk-*.tar.*
           rm immortalwrt-sdk-*.tar.*
