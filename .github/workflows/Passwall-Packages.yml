@@ -55,35 +55,45 @@ jobs:
           TARGET="${{ matrix.target }}"
           ARCH="${{ matrix.arch }}"
           
-          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/"
-          
-          echo "Fetching SDK list from: ${URL}"
-          
-          # 根据当前版本及架构特征，动态精准匹配网页中的 SDK 文件名
-          # 这样可以自动适配 24.10 的 gcc-13.3.0 和 25.12 的 gcc-14.3.0 等不同后缀
-          case "${ARCH}" in
-            "x86_64")
-              SDK_FILE=$(curl -s "$URL" | grep -oE "immortalwrt-sdk-${VER}-x86-64[^\"]*\.tar\.(xz|zst)" | head -n 1)
+          # 根据版本与架构精准拼接官方 SDK 文件名
+          case "${VER}" in
+            "24.10.6")
+              case "${ARCH}" in
+                "x86_64")
+                  SDK_FILE="immortalwrt-sdk-24.10.6-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+                  ;;
+                "aarch64_generic")
+                  SDK_FILE="immortalwrt-sdk-24.10.6-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+                  ;;
+                "aarch64_cortex-a53")
+                  SDK_FILE="immortalwrt-sdk-24.10.6-bcm27xx-bcm2711_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+                  ;;
+              es:
               ;;
-            "aarch64_generic")
-              SDK_FILE=$(curl -s "$URL" | grep -oE "immortalwrt-sdk-${VER}-armsr-armv8[^\"]*\.tar\.(xz|zst)" | head -n 1)
-              ;;
-            "aarch64_cortex-a53")
-              SDK_FILE=$(curl -s "$URL" | grep -oE "immortalwrt-sdk-${VER}-bcm27xx-bcm2711[^\"]*\.tar\.(xz|zst)" | head -n 1)
-              ;;
-            *)
-              SDK_FILE=$(curl -s "$URL" | grep -oE "immortalwrt-sdk-${VER}[^\"]*\.tar\.(xz|zst)" | head -n 1)
+            "25.12.1")
+              case "${ARCH}" in
+                "x86_64")
+                  SDK_FILE="immortalwrt-sdk-25.12.1-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+                  ;;
+                "aarch64_generic")
+                  SDK_FILE="immortalwrt-sdk-25.12.1-armsr-armv8_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+                  ;;
+                "aarch64_cortex-a53")
+                  SDK_FILE="immortalwrt-sdk-25.12.1-bcm27xx-bcm2711_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+                  ;;
+              esac
               ;;
           esac
           
           if [ -z "$SDK_FILE" ]; then
-            echo "Error: Failed to find SDK file for ${VER} at ${TARGET}"
+            echo "Error: Unsupported version (${VER}) or architecture (${ARCH})"
             exit 1
-          }
+          fi
+
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
           
-          FULL_URL="${URL}${SDK_FILE}"
-          echo "Downloading SDK from: ${FULL_URL}"
-          wget -q "${FULL_URL}"
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}"
           
           tar -xf immortalwrt-sdk-*.tar.*
           rm immortalwrt-sdk-*.tar.*
