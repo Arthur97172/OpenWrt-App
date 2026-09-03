@@ -1,0 +1,233 @@
+name: Build Passwall Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 北京时间每两天凌晨 2:00 自动触发 (UTC 18:00)
+    - cron: '0 18 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10 版本 ---
+          - version: "24.10.6"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.6"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.6"
+            target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a53"
+
+          # --- 25.12.1 版本 ---
+          - version: "25.12.1"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.1"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.1"
+            target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a53"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          ARCH="${{ matrix.arch }}"
+          
+          # 根据版本自动匹配对应的 GCC 版本号
+          case "${VER}" in
+            "24.10.6")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.1")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
+          esac
+          
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
+          case "${TARGET}" in
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2711")
+              TARGET_STR="bcm27xx-bcm2711"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
+          esac
+          
+          SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
+          
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+          
+          tar -xf immortalwrt-sdk-*.tar.*
+          rm immortalwrt-sdk-*.tar.*
+          mv immortalwrt-sdk-* sdk
+          
+          cd sdk
+          echo ">>> 更新基础 feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Clone and Copy Specified Packages
+        run: |
+          set -e
+          cd sdk
+
+          echo ">>> 克隆 openwrt-passwall-packages 仓库..."
+          git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git /tmp/passwall_pkgs
+
+          # 指定你需要编译的 6 个核心包
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "v2ray-plugin" "v2ray-geodata")
+
+          for pkg in "${TARGET_PKGS[@]}"; do
+            found_path=""
+            for search_dir in "/tmp/passwall_pkgs/$pkg" "/tmp/passwall_pkgs/net/$pkg" "/tmp/passwall_pkgs/libs/$pkg"; do
+              if [ -d "$search_dir" ]; then
+                found_path="$search_dir"
+                break
+              fi
+            done
+
+            if [ -z "$found_path" ]; then
+              found_path=$(find /tmp/passwall_pkgs -maxdepth 3 -type d -name "$pkg" | head -n1)
+            fi
+
+            if [ -n "$found_path" ] && [ -d "$found_path" ]; then
+              echo "  ✓ 找到并复制 $pkg ($found_path)"
+              cp -a "$found_path" package/
+            else
+              echo "  ✗ 错误：在仓库中未找到指定的包: $pkg"
+              exit 1
+            fi
+          done
+
+      - name: Configure and Compile Packages
+        run: |
+          set -e
+          cd sdk
+
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "v2ray-plugin" "v2ray-geodata")
+
+          # 写入配置，指定编译为模块 (m)
+          for pkg in "${TARGET_PKGS[@]}"; do
+            echo "CONFIG_PACKAGE_$pkg=m" >> .config
+          done
+
+          make defconfig
+          echo "配置完成，开始白名单编译..."
+
+          # 仅循环编译指定的 6 个包
+          for pkg in "${TARGET_PKGS[@]}"; do
+            echo ""
+            echo "======== 开始编译 $pkg ========"
+            make package/$pkg/compile V=s -j$(nproc) || make package/$pkg/compile V=s -j1
+          done
+
+          echo "======== 全部指定包编译完成 ========"
+
+      - name: Organize Packages
+        run: |
+          ARCH="${{ matrix.arch }}"
+          
+          mkdir -p output/apk/${ARCH}/passwall_pkgs
+          mkdir -p output/ipk/${ARCH}/passwall_pkgs
+
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "v2ray-plugin" "v2ray-geodata")
+
+          echo "=== 正在精准提取目标编译产物 ==="
+          find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+            matched=false
+            
+            for pkg in "${TARGET_PKGS[@]}"; do
+              if [[ "$filename" == "$pkg"* ]]; then
+                matched=true
+                break
+              fi
+            done
+
+            if [ "$matched" = true ]; then
+              if [[ "$f" == *.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/passwall_pkgs/
+              elif [[ "$f" == *.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/passwall_pkgs/
+              fi
+            fi
+          done
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkgs-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Commit & Push Packages
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Merge and Clean Files
+        run: |
+          mkdir -p apk/x86_64/passwall_pkgs apk/aarch64_cortex-a53/passwall_pkgs apk/aarch64_generic/passwall_pkgs
+          mkdir -p ipk/x86_64/passwall_pkgs ipk/aarch64_cortex-a53/passwall_pkgs ipk/aarch64_generic/passwall_pkgs
+
+          cp -rn downloaded-artifacts/*/* . || true
+          rm -rf downloaded-artifacts
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add apk/ ipk/
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 Passwall 核心组件 - $(date +'%Y-%m-%d %H:%M:%S')"
+            
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
