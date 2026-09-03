@@ -105,7 +105,7 @@ jobs:
           cd sdk/package
 
           echo ">>> 克隆 TurboACC 主仓库..."
-          git clone --depth=1 https://github.com tmp_turboacc
+          git clone --depth=1 https://github.com/chenmozhijin/turboacc tmp_turboacc
           
           # 提取真正的 luci-app-turboacc 文件夹
           if [ -d "tmp_turboacc/luci-app-turboacc" ]; then
