@@ -26,8 +26,11 @@ jobs:
             arch: "aarch64_generic"
           - version: "24.10.6"
             target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a72"
+          - version: "24.10.6"
+            target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
-
+            
           # --- 25.12.1 版本 ---
           - version: "25.12.1"
             target: "x86/64"
@@ -37,6 +40,9 @@ jobs:
             arch: "aarch64_generic"
           - version: "25.12.1"
             target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a72"
+          - version: "25.12.1"
+            target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
 
     steps:
@@ -79,6 +85,9 @@ jobs:
             "bcm27xx/bcm2711")
               TARGET_STR="bcm27xx-bcm2711"
               ;;
+            "bcm27xx/bcm2710")
+              TARGET_STR="bcm27xx-bcm2710"
+              ;;
             *)
               TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
               ;;
@@ -108,7 +117,7 @@ jobs:
           git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git /tmp/passwall_pkgs
 
           # 指定你需要编译的 6 个核心包
-          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "v2ray-plugin" "v2ray-geodata")
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "sing-box" "v2ray-plugin" "v2ray-geodata")
 
           for pkg in "${TARGET_PKGS[@]}"; do
             found_path=""
@@ -137,7 +146,7 @@ jobs:
           set -e
           cd sdk
 
-          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "v2ray-plugin" "v2ray-geodata")
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "sing-box" "v2ray-plugin" "v2ray-geodata")
 
           # 写入配置，指定编译为模块 (m)
           for pkg in "${TARGET_PKGS[@]}"; do
@@ -163,7 +172,7 @@ jobs:
           mkdir -p output/apk/${ARCH}/passwall_pkgs
           mkdir -p output/ipk/${ARCH}/passwall_pkgs
 
-          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "v2ray-plugin" "v2ray-geodata")
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "sing-box" "v2ray-plugin" "v2ray-geodata")
 
           echo "=== 正在精准提取目标编译产物 ==="
           find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
@@ -209,8 +218,8 @@ jobs:
 
       - name: Merge and Clean Files
         run: |
-          mkdir -p apk/x86_64/passwall_pkgs apk/aarch64_cortex-a53/passwall_pkgs apk/aarch64_generic/passwall_pkgs
-          mkdir -p ipk/x86_64/passwall_pkgs ipk/aarch64_cortex-a53/passwall_pkgs ipk/aarch64_generic/passwall_pkgs
+          mkdir -p apk/x86_64/passwall_pkgs apk/aarch64_cortex-a72/passwall_pkgs apk/aarch64_cortex-a53/passwall_pkgs apk/aarch64_generic/passwall_pkgs
+          mkdir -p ipk/x86_64/passwall_pkgs ipk/aarch64_cortex-a72/passwall_pkgs ipk/aarch64_cortex-a53/passwall_pkgs ipk/aarch64_generic/passwall_pkgs
 
           cp -rn downloaded-artifacts/*/* . || true
           rm -rf downloaded-artifacts
