@@ -1,4 +1,4 @@
-name: Build Passwall Packages
+name: Build Passwall_pkgs
 
 on:
   workflow_dispatch:
@@ -25,9 +25,6 @@ jobs:
             target: "armsr/armv8"
             arch: "aarch64_generic"
           - version: "24.10.6"
-            target: "bcm27xx/bcm2711"
-            arch: "aarch64_cortex-a72"
-          - version: "24.10.6"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
             
@@ -38,9 +35,6 @@ jobs:
           - version: "25.12.1"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "25.12.1"
-            target: "bcm27xx/bcm2711"
-            arch: "aarch64_cortex-a72"
           - version: "25.12.1"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
@@ -81,9 +75,6 @@ jobs:
               ;;
             "armsr/armv8")
               TARGET_STR="armsr-armv8"
-              ;;
-            "bcm27xx/bcm2711")
-              TARGET_STR="bcm27xx-bcm2711"
               ;;
             "bcm27xx/bcm2710")
               TARGET_STR="bcm27xx-bcm2710"
@@ -218,8 +209,8 @@ jobs:
 
       - name: Merge and Clean Files
         run: |
-          mkdir -p apk/x86_64/passwall_pkgs apk/aarch64_cortex-a72/passwall_pkgs apk/aarch64_cortex-a53/passwall_pkgs apk/aarch64_generic/passwall_pkgs
-          mkdir -p ipk/x86_64/passwall_pkgs ipk/aarch64_cortex-a72/passwall_pkgs ipk/aarch64_cortex-a53/passwall_pkgs ipk/aarch64_generic/passwall_pkgs
+          mkdir -p apk/x86_64/passwall_pkgs apk/aarch64_cortex-a53/passwall_pkgs apk/aarch64_generic/passwall_pkgs
+          mkdir -p ipk/x86_64/passwall_pkgs ipk/aarch64_cortex-a53/passwall_pkgs ipk/aarch64_generic/passwall_pkgs
 
           cp -rn downloaded-artifacts/*/* . || true
           rm -rf downloaded-artifacts
