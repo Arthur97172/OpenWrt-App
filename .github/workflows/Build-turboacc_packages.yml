@@ -27,7 +27,7 @@ jobs:
           - version: "24.10.6"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
-            
+          
           # --- 25.12.1 版本 ---
           - version: "25.12.1"
             target: "x86/64"
@@ -116,8 +116,8 @@ jobs:
           rm -rf tmp_turboacc
 
           echo ">>> 克隆 全锥形 NAT (nft-fullcone) 依赖项..."
-          # 从 immortalwrt 官方路由源码扩展库中捞取必要依赖，防止缺依赖不编译
-          git clone --depth=1 https://github.com /tmp/immortalwrt_pkgs
+          # 修复点：补全官方仓库地址，去掉中间错误的空格
+          git clone --depth=1 https://github.com/immortalwrt/packages /tmp/immortalwrt_pkgs
           
           # 仅复制与全新防火墙架构完美兼容的 nft-fullcone
           cp -a /tmp/immortalwrt_pkgs/net/nft-fullcone ./ 2>/dev/null || true
@@ -191,7 +191,7 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
           git add apk/ ipk/
