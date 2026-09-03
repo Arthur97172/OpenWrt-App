@@ -47,7 +47,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison gawk gettext \
-            git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
 
       - name: Download & Extract OpenWrt SDK
         run: |
