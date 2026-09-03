@@ -54,15 +54,32 @@ jobs:
           VER="${{ matrix.version }}"
           TARGET="${{ matrix.target }}"
           
-          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/"
-          SDK_NAME=$(curl -s $URL | grep -oE 'openwrt-sdk-[^"]*\.tar\.(xz|zst)' | head -n 1)
+          # 针对不同目标架构自动适配对应的 SDK 目录及命名规则
+          case "${TARGET}" in
+            "x86/64")
+              SDK_FILE="immortalwrt-sdk-${VER}-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+              ;;
+            "armsr/armv8")
+              SDK_FILE="immortalwrt-sdk-${VER}-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+              ;;
+            "bcm27xx/bcm2711")
+              SDK_FILE="immortalwrt-sdk-${VER}-bcm27xx-bcm2711_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+              ;;
+            *)
+              # 兼容其他未在 case 中明确写出的架构，尝试从官方目录直接精准提取 sdk 关键字
+              URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/"
+              SDK_FILE=$(curl -s "$URL" | grep -oE "immortalwrt-sdk-${VER}[^\"]*\.tar\.(xz|zst)" | head -n 1)
+              ;;
+          esac
+
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
           
-          echo "Downloading SDK from: ${URL}${SDK_NAME}"
-          wget -q "${URL}${SDK_NAME}"
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}"
           
-          tar -xf openwrt-sdk-*.tar.*
-          rm openwrt-sdk-*.tar.*
-          mv openwrt-sdk-* sdk
+          tar -xf immortalwrt-sdk-*.tar.*
+          rm immortalwrt-sdk-*.tar.*
+          mv immortalwrt-sdk-* sdk
 
       - name: Add Passwall Packages Source
         run: |
