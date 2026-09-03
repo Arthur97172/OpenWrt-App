@@ -137,7 +137,7 @@ jobs:
           set -e
           cd sdk
 
-          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "sing-box" "v2ray-plugin" "v2ray-geodata")
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "sing-box")
 
           # 写入配置，指定编译为模块 (m)
           for pkg in "${TARGET_PKGS[@]}"; do
@@ -163,7 +163,7 @@ jobs:
           mkdir -p output/apk/${ARCH}/passwall_pkgs
           mkdir -p output/ipk/${ARCH}/passwall_pkgs
 
-          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "sing-box" "v2ray-plugin" "v2ray-geodata")
+          TARGET_PKGS=("dns2socks" "ipt2socks" "xray-core" "xray-plugin" "sing-box")
 
           echo "=== 正在精准提取目标编译产物 ==="
           find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
