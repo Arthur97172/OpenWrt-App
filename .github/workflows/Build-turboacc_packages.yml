@@ -1,0 +1,191 @@
+name: Build Turboacc Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 北京时间每两天凌晨 2:00 自动触发 (UTC 18:00)
+    - cron: '0 18 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10 版本 (产出 ipk) ---
+          - version: "24.10.6"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.6"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.6"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+            
+          # --- 25.12.1 版本 (产出 apk) ---
+          - version: "25.12.1"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.1"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.1"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget zstd
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          ARCH="${{ matrix.arch }}"
+          
+          case "${VER}" in
+            "24.10.6") GCC_VER="13.3.0" ;;
+            "25.12.1") GCC_VER="14.3.0" ;;
+            *) GCC_VER="14.3.0" ;;
+          esac
+          
+          case "${TARGET}" in
+            "x86/64") TARGET_STR="x86-64" ;;
+            "armsr/armv8") TARGET_STR="armsr-armv8" ;;
+            "bcm27xx/bcm2710") TARGET_STR="bcm27xx-bcm2710" ;;
+            *) TARGET_STR=$(echo "${TARGET}" | tr '/' '-') ;;
+          esac
+          
+          SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://immortalwrt.org{VER}/targets/${TARGET}/${SDK_FILE}"
+          
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+          
+          tar -xf immortalwrt-sdk-*.tar.*
+          rm immortalwrt-sdk-*.tar.*
+          mv immortalwrt-sdk-* sdk
+          
+          cd sdk
+          echo ">>> 更新基础 feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Clone TurboACC & Dependencies
+        run: |
+          set -e
+          cd sdk/package
+
+          echo ">>> 克隆 TurboACC 主仓库..."
+          git clone --depth=1 https://github.com tmp_turboacc
+          
+          # 提取真正的 luci-app-turboacc 文件夹
+          if [ -d "tmp_turboacc/luci-app-turboacc" ]; then
+            cp -a tmp_turboacc/luci-app-turboacc ./
+          else
+            cp -a tmp_turboacc ./luci-app-turboacc
+          fi
+          rm -rf tmp_turboacc
+
+          echo ">>> 克隆 全锥形 NAT (nft-fullcone) 依赖项..."
+          # 从 immortalwrt 官方路由源码扩展库中捞取必要依赖，防止缺依赖不编译
+          git clone --depth=1 https://github.com /tmp/immortalwrt_pkgs
+          
+          # 仅复制与全新防火墙架构完美兼容的 nft-fullcone
+          cp -a /tmp/immortalwrt_pkgs/net/nft-fullcone ./ 2>/dev/null || true
+
+      - name: Configure and Compile Packages
+        run: |
+          set -e
+          cd sdk
+
+          # 写入配置：把主包、中文语言包和全锥形NAT依赖全部标记为模块编译 (m)
+          echo "CONFIG_PACKAGE_luci-app-turboacc=m" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-turboacc-zh-cn=m" >> .config
+          echo "CONFIG_PACKAGE_nft-fullcone=m" >> .config
+
+          # 让 SDK 自动补全缺失的间接依赖
+          make defconfig
+          echo "配置完成，开始白名单编译..."
+
+          # 开始精准编译
+          make package/luci-app-turboacc/compile V=s -j$(nproc) || make package/luci-app-turboacc/compile V=s -j1
+
+      - name: Organize Packages
+        run: |
+          ARCH="${{ matrix.arch }}"
+          
+          mkdir -p output/apk/${ARCH}/turboacc_pkgs
+          mkdir -p output/ipk/${ARCH}/turboacc_pkgs
+
+          echo "=== 正在精准提取 TurboACC 编译产物 ==="
+          find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+            
+            # 匹配包含 turboacc、fullcone 的安装包（自动包含 luci-app-turboacc 及其中文 i18n 语言包）
+            if [[ "$filename" == *"turboacc"* || "$filename" == *"fullcone"* ]]; then
+              if [[ "$f" == *.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/turboacc_pkgs/
+              elif [[ "$f" == *.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/turboacc_pkgs/
+              fi
+            fi
+          done
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: turboacc-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Commit & Push Packages
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Merge and Clean Files
+        run: |
+          mkdir -p apk/x86_64/turboacc_pkgs apk/aarch64_cortex-a53/turboacc_pkgs apk/aarch64_generic/turboacc_pkgs
+          mkdir -p ipk/x86_64/turboacc_pkgs ipk/aarch64_cortex-a53/turboacc_pkgs ipk/aarch64_generic/turboacc_pkgs
+
+          cp -rn downloaded-artifacts/*/* . || true
+          rm -rf downloaded-artifacts
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add apk/ ipk/
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 TurboACC 纯净中文版组件 - $(date +'%Y-%m-%d %H:%M:%S')"
+            
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
