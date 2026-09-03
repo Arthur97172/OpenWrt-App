@@ -1,0 +1,154 @@
+name: Build Passwall Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 北京时间每两天凌晨 2:00 自动触发 (UTC 18:00)
+    - cron: '0 18 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10 版本 ---
+          - version: "24.10.0"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.0"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.0"
+            target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a53"
+
+          # --- 25.12 版本 ---
+          - version: "25.12.0"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.0"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.0"
+            target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a53"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          
+          URL="https://downloads.openwrt.org/releases/${VER}/targets/${TARGET}/"
+          SDK_NAME=$(curl -s $URL | grep -oE 'openwrt-sdk-[^"]*\.tar\.(xz|zst)' | head -n 1)
+          
+          echo "Downloading SDK from: ${URL}${SDK_NAME}"
+          wget -q "${URL}${SDK_NAME}"
+          
+          tar -xf openwrt-sdk-*.tar.*
+          rm openwrt-sdk-*.tar.*
+          mv openwrt-sdk-* sdk
+
+      - name: Add Passwall Packages Source
+        run: |
+          cd sdk
+          echo "src-git passwall_pkgs https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main" >> feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Compile Packages
+        run: |
+          cd sdk
+          make defconfig
+          
+          for pkg in $(ls feeds/passwall_pkgs); do
+            echo "Building package: $pkg"
+            make package/$pkg/compile V=s -j$(nproc) || make package/$pkg/compile V=s -j1
+          done
+
+      - name: Organize Packages
+        run: |
+          ARCH="${{ matrix.arch }}"
+          
+          mkdir -p output/apk/${ARCH}/passwall_pkgs
+          mkdir -p output/ipk/${ARCH}/passwall_pkgs
+
+          # 搜寻所有编译出来的 apk 和 ipk 文件并移动到 passwall_pkgs 目录
+          find sdk/bin/packages/ -type f -name "*.apk" -exec cp {} output/apk/${ARCH}/passwall_pkgs/ \;
+          find sdk/bin/packages/ -type f -name "*.ipk" -exec cp {} output/ipk/${ARCH}/passwall_pkgs/ \;
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkgs-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Commit & Push Packages
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Merge and Clean Files
+        run: |
+          # 创建 passwall_pkgs 目标目录结构，确保路径存在
+          mkdir -p apk/x86_64/passwall_pkgs apk/aarch64_cortex-a53/passwall_pkgs apk/aarch64_generic/passwall_pkgs
+          mkdir -p ipk/x86_64/passwall_pkgs ipk/aarch64_cortex-a53/passwall_pkgs ipk/aarch64_generic/passwall_pkgs
+
+          # 复制所有产物到当前仓库目录结构中
+          cp -rn downloaded-artifacts/*/* . || true
+          rm -rf downloaded-artifacts
+
+          # 过滤非 zh-cn 语言包
+          echo "=== 过滤语言包 ==="
+          for dir in apk/*/* ipk/*/*; do
+            [ -d "$dir" ] || continue
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              if [[ $(basename "$file") == luci-i18n-* ]] && [[ ! $(basename "$file") =~ -zh-cn ]]; then
+                rm -f "$file"
+                echo "  删除非中文语言包: $(basename "$file")"
+              fi
+            done
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add apk/ ipk/
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 OpenWrt 软件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+            
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
