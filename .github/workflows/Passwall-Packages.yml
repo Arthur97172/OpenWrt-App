@@ -64,7 +64,6 @@ jobs:
               GCC_VER="14.3.0"
               ;;
             *)
-              # 默认或未来版本的兜底（可按需调整）
               GCC_VER="14.3.0"
               ;;
           esac
@@ -85,7 +84,6 @@ jobs:
               ;;
           esac
           
-          # 完美复刻你发现的命名规律进行拼接
           SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
           URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
           
@@ -98,8 +96,8 @@ jobs:
 
       - name: Add Passwall Packages Source
         run: |
+          echo "src-git passwall_pkgs https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main" >> sdk/feeds.conf.default
           cd sdk
-          echo "src-git passwall_pkgs https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main" >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
@@ -108,7 +106,10 @@ jobs:
           cd sdk
           make defconfig
           
-          for pkg in $(ls feeds/passwall_pkgs); do
+          # 精准指定你需要的 Passwall 核心包及界面（可根据实际需要增减）
+          TARGET_PKGS=("passwall" "luci-app-passwall")
+          
+          for pkg in "${TARGET_PKGS[@]}"; do
             echo "Building package: $pkg"
             make package/$pkg/compile V=s -j$(nproc) || make package/$pkg/compile V=s -j1
           done
@@ -120,7 +121,6 @@ jobs:
           mkdir -p output/apk/${ARCH}/passwall_pkgs
           mkdir -p output/ipk/${ARCH}/passwall_pkgs
 
-          # 搜寻所有编译出来的 apk 和 ipk 文件并移动到 passwall_pkgs 目录
           find sdk/bin/packages/ -type f -name "*.apk" -exec cp {} output/apk/${ARCH}/passwall_pkgs/ \;
           find sdk/bin/packages/ -type f -name "*.ipk" -exec cp {} output/ipk/${ARCH}/passwall_pkgs/ \;
 
@@ -147,15 +147,12 @@ jobs:
 
       - name: Merge and Clean Files
         run: |
-          # 创建 passwall_pkgs 目标目录结构，确保路径存在
           mkdir -p apk/x86_64/passwall_pkgs apk/aarch64_cortex-a53/passwall_pkgs apk/aarch64_generic/passwall_pkgs
           mkdir -p ipk/x86_64/passwall_pkgs ipk/aarch64_cortex-a53/passwall_pkgs ipk/aarch64_generic/passwall_pkgs
 
-          # 复制所有产物到当前仓库目录结构中
           cp -rn downloaded-artifacts/*/* . || true
           rm -rf downloaded-artifacts
 
-          # 过滤非 zh-cn 语言包
           echo "=== 过滤语言包 ==="
           for dir in apk/*/* ipk/*/*; do
             [ -d "$dir" ] || continue
