@@ -1,4 +1,4 @@
-name: Build Passwall_pkgs
+name: Build Passwall Packages
 
 on:
   workflow_dispatch:
