@@ -3,6 +3,7 @@ name: Build AdGuardHome Packages
 on:
   workflow_dispatch:
   schedule:
+    # 北京时间每两天凌晨 2:00 自动触发 (UTC 18:00)
     - cron: '0 18 */2 * *'
 
 permissions:
@@ -16,6 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # --- 24.10 版本 ---
           - version: "24.10.6"
             target: "x86/64"
             arch: "x86_64"
@@ -25,6 +27,8 @@ jobs:
           - version: "24.10.6"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
+            
+          # --- 25.12.1 版本 ---
           - version: "25.12.1"
             target: "x86/64"
             arch: "x86_64"
@@ -36,42 +40,62 @@ jobs:
             arch: "aarch64_cortex-a53"
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Tools
+      - name: Setup Build Environment
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison gawk gettext \
-            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget zstd
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
 
-      - name: Fetch SDK
+      - name: Download & Extract OpenWrt SDK
         run: |
           VER="${{ matrix.version }}"
           TARGET="${{ matrix.target }}"
+          ARCH="${{ matrix.arch }}"
           
+          # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
-            "24.10.6") GCC_VER="13.3.0" ;;
-            "25.12.1") GCC_VER="14.3.0" ;;
-            *) GCC_VER="14.3.0" ;;
+            "24.10.6")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.1")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
           esac
           
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
           case "${TARGET}" in
-            "x86/64") TARGET_STR="x86-64" ;;
-            "armsr/armv8") TARGET_STR="armsr-armv8" ;;
-            "bcm27xx/bcm2710") TARGET_STR="bcm27xx-bcm2710" ;;
-            *) TARGET_STR=$(echo "${TARGET}" | tr '/' '-') ;;
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2710")
+              TARGET_STR="bcm27xx-bcm2710"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
           esac
           
           SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
-          URL="https://immortalwrt.org{VER}/targets/${TARGET}/${SDK_FILE}"
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
           
-          wget -q "${URL}" || { exit 1; }
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+          
           tar -xf immortalwrt-sdk-*.tar.*
           rm immortalwrt-sdk-*.tar.*
           mv immortalwrt-sdk-* sdk
           
           cd sdk
+          echo ">>> 更新基础 feeds..."
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
