@@ -17,25 +17,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- 24.18 版本 ---
-          - version: "24.10.8"
+          # --- 24.10 版本 ---
+          - version: "24.10.6"
             target: "x86/64"
             arch: "x86_64"
-          - version: "24.10.8"
+          - version: "24.10.6"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "24.10.8"
+          - version: "24.10.6"
             target: "bcm27xx/bcm2711"
             arch: "aarch64_cortex-a53"
 
-          # --- 25.12.5 版本 ---
-          - version: "25.12.5"
+          # --- 25.12.1 版本 ---
+          - version: "25.12.1"
             target: "x86/64"
             arch: "x86_64"
-          - version: "25.12.5"
+          - version: "25.12.1"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "25.12.5"
+          - version: "25.12.1"
             target: "bcm27xx/bcm2711"
             arch: "aarch64_cortex-a53"
 
@@ -54,7 +54,7 @@ jobs:
           VER="${{ matrix.version }}"
           TARGET="${{ matrix.target }}"
           
-          URL="https://downloads.openwrt.org/releases/${VER}/targets/${TARGET}/"
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/"
           SDK_NAME=$(curl -s $URL | grep -oE 'openwrt-sdk-[^"]*\.tar\.(xz|zst)' | head -n 1)
           
           echo "Downloading SDK from: ${URL}${SDK_NAME}"
