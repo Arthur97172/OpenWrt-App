@@ -1,0 +1,150 @@
+name: Build AdGuardHome Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 18 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "24.10.6"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.6"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.6"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+          - version: "25.12.1"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.1"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.1"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget zstd
+
+      - name: Fetch SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          
+          case "${VER}" in
+            "24.10.6") GCC_VER="13.3.0" ;;
+            "25.12.1") GCC_VER="14.3.0" ;;
+            *) GCC_VER="14.3.0" ;;
+          esac
+          
+          case "${TARGET}" in
+            "x86/64") TARGET_STR="x86-64" ;;
+            "armsr/armv8") TARGET_STR="armsr-armv8" ;;
+            "bcm27xx/bcm2710") TARGET_STR="bcm27xx-bcm2710" ;;
+            *) TARGET_STR=$(echo "${TARGET}" | tr '/' '-') ;;
+          esac
+          
+          SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://immortalwrt.org{VER}/targets/${TARGET}/${SDK_FILE}"
+          
+          wget -q "${URL}" || { exit 1; }
+          tar -xf immortalwrt-sdk-*.tar.*
+          rm immortalwrt-sdk-*.tar.*
+          mv immortalwrt-sdk-* sdk
+          
+          cd sdk
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Pull Source
+        run: |
+          set -e
+          cd sdk/package
+          git clone --depth=1 https://github.com /tmp/kenzo_pkgs
+          cp -a /tmp/kenzo_pkgs/adguardhome ./
+          cp -a /tmp/kenzo_pkgs/luci-app-adguardhome ./
+
+      - name: Compile
+        run: |
+          set -e
+          cd sdk
+          echo "CONFIG_PACKAGE_adguardhome=m" >> .config
+          echo "CONFIG_PACKAGE_luci-app-adguardhome=m" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-adguardhome-zh-cn=m" >> .config
+          make defconfig
+          make package/luci-app-adguardhome/compile V=s -j$(nproc) || make package/luci-app-adguardhome/compile V=s -j1
+
+      - name: Pack Files
+        run: |
+          ARCH="${{ matrix.arch }}"
+          mkdir -p output/apk/${ARCH}/adguardhome_pkgs output/ipk/${ARCH}/adguardhome_pkgs
+          find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+            if [[ "$filename" == *"adguardhome"* ]]; then
+              if [[ "$f" == *.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/adguardhome_pkgs/
+              elif [[ "$f" == *.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/adguardhome_pkgs/
+              fi
+            fi
+          done
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: adguardhome-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Save to Repo
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Files
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Move Files
+        run: |
+          mkdir -p apk/x86_64/adguardhome_pkgs apk/aarch64_cortex-a53/adguardhome_pkgs apk/aarch64_generic/adguardhome_pkgs
+          mkdir -p ipk/x86_64/adguardhome_pkgs ipk/aarch64_cortex-a53/adguardhome_pkgs ipk/aarch64_generic/adguardhome_pkgs
+          cp -rn downloaded-artifacts/*/* . || true
+          rm -rf downloaded-artifacts
+
+      - name: Push
+        run: |
+          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.name "github-actions[bot]"
+          git add apk/ ipk/
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Auto sync AdGuardHome - $(date +'%Y-%m-%d %H:%M:%S')"
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
