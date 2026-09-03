@@ -17,25 +17,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- 24.10 版本 ---
-          - version: "24.10.0"
+          # --- 24.18 版本 ---
+          - version: "24.10.8"
             target: "x86/64"
             arch: "x86_64"
-          - version: "24.10.0"
+          - version: "24.10.8"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "24.10.0"
+          - version: "24.10.8"
             target: "bcm27xx/bcm2711"
             arch: "aarch64_cortex-a53"
 
-          # --- 25.12 版本 ---
-          - version: "25.12.0"
+          # --- 25.12.5 版本 ---
+          - version: "25.12.5"
             target: "x86/64"
             arch: "x86_64"
-          - version: "25.12.0"
+          - version: "25.12.5"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "25.12.0"
+          - version: "25.12.5"
             target: "bcm27xx/bcm2711"
             arch: "aarch64_cortex-a53"
 
