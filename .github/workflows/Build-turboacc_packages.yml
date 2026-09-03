@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- 24.10 版本 (产出 ipk) ---
+          # --- 24.10 版本 ---
           - version: "24.10.6"
             target: "x86/64"
             arch: "x86_64"
@@ -28,7 +28,7 @@ jobs:
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
             
-          # --- 25.12.1 版本 (产出 apk) ---
+          # --- 25.12.1 版本 ---
           - version: "25.12.1"
             target: "x86/64"
             arch: "x86_64"
@@ -47,7 +47,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison gawk gettext \
-            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget zstd
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
 
       - name: Download & Extract OpenWrt SDK
         run: |
@@ -55,21 +55,37 @@ jobs:
           TARGET="${{ matrix.target }}"
           ARCH="${{ matrix.arch }}"
           
+          # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
-            "24.10.6") GCC_VER="13.3.0" ;;
-            "25.12.1") GCC_VER="14.3.0" ;;
-            *) GCC_VER="14.3.0" ;;
+            "24.10.6")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.1")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
           esac
           
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
           case "${TARGET}" in
-            "x86/64") TARGET_STR="x86-64" ;;
-            "armsr/armv8") TARGET_STR="armsr-armv8" ;;
-            "bcm27xx/bcm2710") TARGET_STR="bcm27xx-bcm2710" ;;
-            *) TARGET_STR=$(echo "${TARGET}" | tr '/' '-') ;;
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2710")
+              TARGET_STR="bcm27xx-bcm2710"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
           esac
           
           SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
-          URL="https://immortalwrt.org{VER}/targets/${TARGET}/${SDK_FILE}"
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
           
           echo "Downloading SDK from: ${URL}"
           wget -q "${URL}" || { echo "Download failed!"; exit 1; }
