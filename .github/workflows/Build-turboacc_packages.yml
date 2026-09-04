@@ -3,8 +3,8 @@ name: Build Turboacc Packages
 on:
   workflow_dispatch:
   schedule:
-    # 北京时间每两天凌晨 4:00 自动触发 (UTC 20:00)
-    - cron: '0 20 */2 * *'
+    # 北京时间每两天凌晨 2:00 自动触发 (UTC 18:00)
+    - cron: '0 18 */2 * *'
 
 permissions:
   contents: write
@@ -55,7 +55,6 @@ jobs:
           TARGET="${{ matrix.target }}"
           ARCH="${{ matrix.arch }}"
           
-          # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
             "24.10.6")
               GCC_VER="13.3.0"
@@ -68,7 +67,6 @@ jobs:
               ;;
           esac
           
-          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
           case "${TARGET}" in
             "x86/64")
               TARGET_STR="x86-64"
@@ -99,7 +97,7 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Clone TurboACC & Dependencies
+      - name: Clone TurboACC
         run: |
           set -e
           cd sdk/package
@@ -113,40 +111,20 @@ jobs:
           fi
           rm -rf tmp_turboacc
 
-          echo ">>> 克隆 nft-fullcone 依赖..."
-          git clone --depth=1 https://github.com/immortalwrt/packages /tmp/immortalwrt_pkgs
-          cp -a /tmp/immortalwrt_pkgs/net/nft-fullcone ./ 2>/dev/null || true
-          rm -rf /tmp/immortalwrt_pkgs
-
-          echo ">>> 克隆 iptables-mod-fullconenat 依赖..."
-          git clone --depth=1 https://github.com/Lienol/openwrt-package /tmp/lienol_pkgs
-          cp -a /tmp/lienol_pkgs/package/iptables-mod-fullconenat ./ 2>/dev/null || true
-          rm -rf /tmp/lienol_pkgs
-
-      - name: Configure and Fast Compile Specified Packages
+      - name: Configure and Fast Compile
         run: |
           set -e
           cd sdk
 
-          # 写入所需的目标包配置
+          # 写入 TurboACC 及其语言包配置
           echo "CONFIG_PACKAGE_luci-app-turboacc=m" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-turboacc-zh-cn=m" >> .config
-          echo "CONFIG_PACKAGE_nft-fullcone=m" >> .config
-          echo "CONFIG_PACKAGE_kmod-nft-fullcone=m" >> .config
-          echo "CONFIG_PACKAGE_iptables-mod-fullconenat=m" >> .config
-          echo "CONFIG_PACKAGE_ip6tables-mod-fullconenat=m" >> .config
 
           make defconfig
-          echo ">>> 开始快速精准编译指定软件包..."
+          echo ">>> 开始精准快速编译 TurboACC..."
 
-          # 精准编译指定目标（按顺序并行编译，失败时降级单线程）
+          # 只编译 TurboACC 目标，1-2 分钟即可完成
           make package/luci-app-turboacc/compile V=s -j$(nproc) || make package/luci-app-turboacc/compile V=s -j1
-          make package/nft-fullcone/compile V=s -j$(nproc) || make package/nft-fullcone/compile V=s -j1
-          
-          # 仅当 iptables-mod-fullconenat 源码存在时编译
-          if [ -d "package/iptables-mod-fullconenat" ]; then
-            make package/iptables-mod-fullconenat/compile V=s -j$(nproc) || make package/iptables-mod-fullconenat/compile V=s -j1
-          fi
 
       - name: Organize Packages
         run: |
@@ -155,12 +133,12 @@ jobs:
           mkdir -p output/apk/${ARCH}/turboacc
           mkdir -p output/ipk/${ARCH}/turboacc
 
-          echo "=== 提取指定编译产物 ==="
+          echo "=== 提取 TurboACC 编译产物 ==="
           find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
             filename=$(basename "$f")
             
-            # 严格筛选目标包：turboacc, fullcone, fullconenat
-            if [[ "$filename" == *"turboacc"* || "$filename" == *"fullcone"* ]]; then
+            # 提取 turboacc 及其关联包（包含 luci-app-turboacc 和 luci-i18n-turboacc-zh-cn）
+            if [[ "$filename" == *"turboacc"* ]]; then
               if [[ "$f" == *.apk ]]; then
                 cp -v "$f" output/apk/${ARCH}/turboacc/
               elif [[ "$f" == *.ipk ]]; then
