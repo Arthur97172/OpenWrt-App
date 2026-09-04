@@ -120,14 +120,14 @@ jobs:
       - name: Pack Files
         run: |
           ARCH="${{ matrix.arch }}"
-          mkdir -p output/apk/${ARCH}/adguardhome_pkgs output/ipk/${ARCH}/adguardhome_pkgs
+          mkdir -p output/apk/${ARCH}/adguardhome output/ipk/${ARCH}/adguardhome
           find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
             filename=$(basename "$f")
             if [[ "$filename" == *"adguardhome"* ]]; then
               if [[ "$f" == *.apk ]]; then
-                cp -v "$f" output/apk/${ARCH}/adguardhome_pkgs/
+                cp -v "$f" output/apk/${ARCH}/adguardhome/
               elif [[ "$f" == *.ipk ]]; then
-                cp -v "$f" output/ipk/${ARCH}/adguardhome_pkgs/
+                cp -v "$f" output/ipk/${ARCH}/adguardhome/
               fi
             fi
           done
@@ -155,8 +155,8 @@ jobs:
 
       - name: Move Files
         run: |
-          mkdir -p apk/x86_64/adguardhome_pkgs apk/aarch64_cortex-a53/adguardhome_pkgs apk/aarch64_generic/adguardhome_pkgs
-          mkdir -p ipk/x86_64/adguardhome_pkgs ipk/aarch64_cortex-a53/adguardhome_pkgs ipk/aarch64_generic/adguardhome_pkgs
+          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_generic/adguardhome
+          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
           cp -rn downloaded-artifacts/*/* . || true
           rm -rf downloaded-artifacts
 
