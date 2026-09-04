@@ -143,8 +143,8 @@ jobs:
         run: |
           ARCH="${{ matrix.arch }}"
           
-          mkdir -p output/apk/${ARCH}/turboacc_pkgs
-          mkdir -p output/ipk/${ARCH}/turboacc_pkgs
+          mkdir -p output/apk/${ARCH}/turboacc
+          mkdir -p output/ipk/${ARCH}/turboacc
 
           echo "=== 正在精准提取 TurboACC 编译产物 ==="
           find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
