@@ -115,7 +115,8 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-adguardhome=m" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-adguardhome-zh-cn=m" >> .config
           make defconfig
-          make package/luci-app-adguardhome/compile V=s -j$(nproc) || make package/luci-app-adguardhome/compile V=s -j1
+          # 修正编译指令：全量编译已选中的模块，确保所有组件及语言包均被正确构建
+          make package/compile V=s -j$(nproc) || make package/compile V=s -j1
 
       - name: Pack Files
         run: |
@@ -162,7 +163,7 @@ jobs:
 
       - name: Push
         run: |
-          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add apk/ ipk/
           if git diff --staged --quiet; then
