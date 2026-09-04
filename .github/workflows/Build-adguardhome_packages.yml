@@ -105,11 +105,7 @@ jobs:
           cd sdk/package
           git clone --depth=1 https://github.com/terrytyc/luci-app-adguardhome /tmp/terrytyc_pkgs
           #cp -a /tmp/terrytyc_pkgs/AdGuardHome ./
-          if [ -d "terrytyc_pkgs/luci-app-adguardhome" ]; then
           cp -a /tmp/terrytyc_pkgs/luci-app-adguardhome ./
-          else
-            cp -a terrytyc_pkgs ./luci-app-adguardhome
-          fi
           rm -rf /tmp/terrytyc_pkgs
 
       - name: Fast Compile Specified Packages
