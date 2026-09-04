@@ -103,10 +103,10 @@ jobs:
         run: |
           set -e
           cd sdk/package
-          git clone --depth=1 https://github.com/xiaoxiao29/luci-app-adguardhome /tmp/xiaoxiao29_pkgs
-          cp -a /tmp/xiaoxiao29_pkgs/AdGuardHome ./
-          cp -a /tmp/xiaoxiao29_pkgs/luci-app-adguardhome ./
-          rm -rf /tmp/xiaoxiao29_pkgs
+          git clone --depth=1 https://github.com/terrytyc/luci-app-adguardhome /tmp/terrytyc_pkgs
+          #cp -a /tmp/terrytyc_pkgs/AdGuardHome ./
+          cp -a /tmp/terrytyc_pkgs/luci-app-adguardhome ./
+          rm -rf /tmp/terrytyc_pkgs
 
       - name: Fast Compile Specified Packages
         run: |
