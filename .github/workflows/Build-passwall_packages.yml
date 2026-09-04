@@ -3,8 +3,8 @@ name: Build Passwall Packages
 on:
   workflow_dispatch:
   schedule:
-    # 北京时间每两天凌晨 2:00 自动触发 (UTC 18:00)
-    - cron: '0 18 */2 * *'
+    # 北京时间每两天凌晨 3:00 自动触发 (UTC 19:00)
+    - cron: '0 19 */2 * *'
 
 permissions:
   contents: write
