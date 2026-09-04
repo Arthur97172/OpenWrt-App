@@ -1,0 +1,176 @@
+name: Build AdGuardHome Packages Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 北京时间每两天凌晨 3:00 自动触发 (UTC 19:00)
+    - cron: '0 19 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10 版本 ---
+          - version: "24.10.6"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.6"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.6"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+            
+          # --- 25.12.1 版本 ---
+          - version: "25.12.1"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.1"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.1"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          ARCH="${{ matrix.arch }}"
+          
+          # 根据版本自动匹配对应的 GCC 版本号
+          case "${VER}" in
+            "24.10.6")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.1")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
+          esac
+          
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
+          case "${TARGET}" in
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2710")
+              TARGET_STR="bcm27xx-bcm2710"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
+          esac
+          
+          SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
+          
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+          
+          tar -xf immortalwrt-sdk-*.tar.*
+          rm immortalwrt-sdk-*.tar.*
+          mv immortalwrt-sdk-* sdk
+          
+          cd sdk
+          echo ">>> 更新基础 feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Pull Source
+        run: |
+          set -e
+          # 直接拉取 xiaoxiao29 源码到 sdk/package/luci-app-adguardhome
+          git clone --depth=1 https://github.com/xiaoxiao29/luci-app-adguardhome sdk/package/luci-app-adguardhome
+
+      - name: Fast Compile Specified Packages
+        run: |
+          set -e
+          cd sdk
+          # xiaoxiao29 仓库主选包名称为 CONFIG_PACKAGE_luci-app-adguardhome
+          echo "CONFIG_PACKAGE_luci-app-adguardhome=m" >> .config
+          make defconfig
+
+          echo ">>> 编译 xiaoxiao29/luci-app-adguardhome..."
+          make package/luci-app-adguardhome/compile V=s -j$(nproc) || make package/luci-app-adguardhome/compile V=s -j1
+
+      - name: Pack Files
+        run: |
+          ARCH="${{ matrix.arch }}"
+          mkdir -p output/apk/${ARCH}/adguardhome output/ipk/${ARCH}/adguardhome
+          
+          echo "=== 提取指定的 AdGuardHome 产物 ==="
+          find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+            # 匹配 luci-app-adguardhome 或 adguardhome 编译出来的包
+            if [[ "$filename" == *"adguardhome"* ]]; then
+              if [[ "$f" == *.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/adguardhome/
+              elif [[ "$f" == *.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/adguardhome/
+              fi
+            fi
+          done
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: adguardhome-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Save to Repo
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Files
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Move Files
+        run: |
+          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_generic/adguardhome
+          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
+          cp -rn downloaded-artifacts/*/* . || true
+          rm -rf downloaded-artifacts
+
+      - name: Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add apk/ ipk/
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Auto sync AdGuardHome - $(date +'%Y-%m-%d %H:%M:%S')"
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
