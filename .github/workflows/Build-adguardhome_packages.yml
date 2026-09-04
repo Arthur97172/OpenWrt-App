@@ -121,7 +121,6 @@ jobs:
           # 分别单独编译主程序和 LuCI 界面（语言包会在编译 luci-app-adguardhome 时自动包含）
           make package/adguardhome/compile V=s -j$(nproc) || make package/adguardhome/compile V=s -j1
           make package/luci-app-adguardhome/compile V=s -j$(nproc) || make package/luci-app-adguardhome/compile V=s -j1
-          make package/luci-i18n-adguardhome-zh-cn/compile V=s -j$(nproc) || make package/luci-i18n-adguardhome-zh-cn/compile V=s -j1
 
       - name: Pack Files
         run: |
