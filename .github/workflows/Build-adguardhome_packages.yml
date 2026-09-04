@@ -104,7 +104,7 @@ jobs:
           set -e
           cd sdk/package
           git clone --depth=1 https://github.com/xiaoxiao29/luci-app-adguardhome /tmp/xiaoxiao29_pkgs
-          cp -a /tmp/xiaoxiao29_pkgs/adguardhome ./
+          cp -a /tmp/xiaoxiao29_pkgs/AdGuardHome ./
           cp -a /tmp/xiaoxiao29_pkgs/luci-app-adguardhome ./
           rm -rf /tmp/xiaoxiao29_pkgs
 
