@@ -2,7 +2,7 @@ name: Sync OpenWrt Packages
 
 on:
   schedule:
-    - cron: '0 18 */2 * *'  # 每2日凌晨2点执行
+    - cron: '0 17 */2 * *'  # 每2日凌晨1点执行
   workflow_dispatch:  # 允许手动触发
 
 jobs:
