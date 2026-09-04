@@ -138,7 +138,7 @@ jobs:
             filename=$(basename "$f")
             
             # 提取 turboacc 及其关联包（包含 luci-app-turboacc 和 luci-i18n-turboacc-zh-cn）
-            if [[ "$filename" == *"turboacc"* ]]; then
+            if [[ "$filename" == *"turboacc"* ]] || [[ "$filename" == *"nft-fullcone"* ]]; then
               if [[ "$f" == *.apk ]]; then
                 cp -v "$f" output/apk/${ARCH}/turboacc/
               elif [[ "$f" == *.ipk ]]; then
