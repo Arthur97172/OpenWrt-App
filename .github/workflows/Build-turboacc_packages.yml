@@ -27,7 +27,7 @@ jobs:
           - version: "24.10.6"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
-          
+            
           # --- 25.12.1 版本 ---
           - version: "25.12.1"
             target: "x86/64"
@@ -116,10 +116,9 @@ jobs:
           rm -rf tmp_turboacc
 
           echo ">>> 克隆 全锥形 NAT (nft-fullcone) 依赖项..."
-          # 修复点：补全官方仓库地址，去掉中间错误的空格
           git clone --depth=1 https://github.com/immortalwrt/packages /tmp/immortalwrt_pkgs
           
-          # 仅复制与全新防火墙架构完美兼容的 nft-fullcone
+          # 复制 nft-fullcone 源码
           cp -a /tmp/immortalwrt_pkgs/net/nft-fullcone ./ 2>/dev/null || true
 
       - name: Configure and Compile Packages
@@ -127,17 +126,18 @@ jobs:
           set -e
           cd sdk
 
-          # 写入配置：把主包、中文语言包和全锥形NAT依赖全部标记为模块编译 (m)
+          # 写入配置：显式标记主包、中文语言包、用户态组件及内核模块
           echo "CONFIG_PACKAGE_luci-app-turboacc=m" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-turboacc-zh-cn=m" >> .config
           echo "CONFIG_PACKAGE_nft-fullcone=m" >> .config
+          echo "CONFIG_PACKAGE_kmod-nft-fullcone=m" >> .config
 
-          # 让 SDK 自动补全缺失的间接依赖
+          # 让 SDK 自动补全依赖
           make defconfig
-          echo "配置完成，开始白名单编译..."
+          echo "配置完成，开始编译所有已选包..."
 
-          # 开始精准编译
-          make package/luci-app-turboacc/compile V=s -j$(nproc) || make package/luci-app-turboacc/compile V=s -j1
+          # 修改点：使用 make package/compile，确保所有标记为 =m 的包（包括 kmod）均被编译
+          make package/compile V=s -j$(nproc) || make package/compile V=s -j1
 
       - name: Organize Packages
         run: |
@@ -147,10 +147,10 @@ jobs:
           mkdir -p output/ipk/${ARCH}/turboacc
 
           echo "=== 正在精准提取 TurboACC 编译产物 ==="
-          find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+          find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
             filename=$(basename "$f")
             
-            # 匹配包含 turboacc、fullcone 的安装包（自动包含 luci-app-turboacc 及其中文 i18n 语言包）
+            # 匹配包含 turboacc、fullcone 的安装包（能自动匹配 kmod-nft-fullcone、nft-fullcone、luci-app-turboacc 等）
             if [[ "$filename" == *"turboacc"* || "$filename" == *"fullcone"* ]]; then
               if [[ "$f" == *.apk ]]; then
                 cp -v "$f" output/apk/${ARCH}/turboacc/
