@@ -106,8 +106,9 @@ jobs:
           git clone --depth=1 https://github.com/kenzok8/openwrt-packages /tmp/kenzo_pkgs
           cp -a /tmp/kenzo_pkgs/adguardhome ./
           cp -a /tmp/kenzo_pkgs/luci-app-adguardhome ./
+          rm -rf /tmp/kenzo_pkgs
 
-      - name: Compile
+      - name: Fast Compile Specified Packages
         run: |
           set -e
           cd sdk
@@ -115,14 +116,19 @@ jobs:
           echo "CONFIG_PACKAGE_luci-app-adguardhome=m" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-adguardhome-zh-cn=m" >> .config
           make defconfig
-          # 修正编译指令：全量编译已选中的模块，确保所有组件及语言包均被正确构建
-          make package/compile V=s -j$(nproc) || make package/compile V=s -j1
+
+          echo ">>> 快速精准编译指定软件包..."
+          # 分别单独编译主程序和 LuCI 界面（语言包会在编译 luci-app-adguardhome 时自动包含）
+          make package/adguardhome/compile V=s -j$(nproc) || make package/adguardhome/compile V=s -j1
+          make package/luci-app-adguardhome/compile V=s -j$(nproc) || make package/luci-app-adguardhome/compile V=s -j1
 
       - name: Pack Files
         run: |
           ARCH="${{ matrix.arch }}"
           mkdir -p output/apk/${ARCH}/adguardhome output/ipk/${ARCH}/adguardhome
-          find sdk/bin/packages/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+          
+          echo "=== 提取指定的 AdGuardHome 产物 ==="
+          find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
             filename=$(basename "$f")
             if [[ "$filename" == *"adguardhome"* ]]; then
               if [[ "$f" == *.apk ]]; then
