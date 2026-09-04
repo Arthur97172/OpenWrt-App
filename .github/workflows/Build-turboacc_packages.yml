@@ -153,9 +153,9 @@ jobs:
             # 匹配包含 turboacc、fullcone 的安装包（自动包含 luci-app-turboacc 及其中文 i18n 语言包）
             if [[ "$filename" == *"turboacc"* || "$filename" == *"fullcone"* ]]; then
               if [[ "$f" == *.apk ]]; then
-                cp -v "$f" output/apk/${ARCH}/turboacc_pkgs/
+                cp -v "$f" output/apk/${ARCH}/turboacc/
               elif [[ "$f" == *.ipk ]]; then
-                cp -v "$f" output/ipk/${ARCH}/turboacc_pkgs/
+                cp -v "$f" output/ipk/${ARCH}/turboacc/
               fi
             fi
           done
@@ -183,8 +183,8 @@ jobs:
 
       - name: Merge and Clean Files
         run: |
-          mkdir -p apk/x86_64/turboacc_pkgs apk/aarch64_cortex-a53/turboacc_pkgs apk/aarch64_generic/turboacc_pkgs
-          mkdir -p ipk/x86_64/turboacc_pkgs ipk/aarch64_cortex-a53/turboacc_pkgs ipk/aarch64_generic/turboacc_pkgs
+          mkdir -p apk/x86_64/turboacc apk/aarch64_cortex-a53/turboacc apk/aarch64_generic/turboacc
+          mkdir -p ipk/x86_64/turboacc ipk/aarch64_cortex-a53/turboacc ipk/aarch64_generic/turboacc
 
           cp -rn downloaded-artifacts/*/* . || true
           rm -rf downloaded-artifacts
