@@ -103,10 +103,10 @@ jobs:
         run: |
           set -e
           cd sdk/package
-          git clone --depth=1 https://github.com/kenzok8/openwrt-packages /tmp/kenzo_pkgs
-          cp -a /tmp/kenzo_pkgs/adguardhome ./
-          cp -a /tmp/kenzo_pkgs/luci-app-adguardhome ./
-          rm -rf /tmp/kenzo_pkgs
+          git clone --depth=1 https://github.com/xiaoxiao29/luci-app-adguardhome /tmp/xiaoxiao29_pkgs
+          cp -a /tmp/xiaoxiao29_pkgs/adguardhome ./
+          cp -a /tmp/xiaoxiao29_pkgs/luci-app-adguardhome ./
+          rm -rf /tmp/xiaoxiao29_pkgs
 
       - name: Fast Compile Specified Packages
         run: |
