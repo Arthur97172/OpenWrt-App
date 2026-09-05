@@ -107,6 +107,21 @@ jobs:
           #cp -a /tmp/MinimaxFlora_pkgs/AdGuardHome ./
           cp -a /tmp/MinimaxFlora_pkgs/luci-app-adguardhome ./
           rm -rf /tmp/MinimaxFlora_pkgs
+          # 删除 feeds 中同名的 luci-app-adguardhome，
+          # 避免它覆盖或冲突于本地源码
+          cd ..
+          ./scripts/feeds uninstall luci-app-adguardhome || true  
+
+      - name: Check LuCI source
+        run: |
+          set -e
+          cd sdk/package/luci-app-adguardhome
+      
+          echo "=== Makefile ==="
+          sed -n '1,120p' Makefile
+      
+          echo "=== Translation files ==="
+          find . -maxdepth 3 -type f | grep -E 'po|templates' | sort
 
       - name: Fast Compile Specified Packages
         run: |
