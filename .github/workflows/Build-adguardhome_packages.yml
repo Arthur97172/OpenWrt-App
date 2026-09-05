@@ -102,15 +102,17 @@ jobs:
       - name: Pull Source
         run: |
           set -e
-          cd sdk/package
+          cd sdk    
+          echo ">>> 删除 feeds 中同名的 luci-app-adguardhome..."
+          ./scripts/feeds uninstall luci-app-adguardhome || true
+      
+          cd package
           git clone --depth=1 https://github.com/MinimaxFlora/luci-app-adguardhome /tmp/MinimaxFlora_pkgs
-          #cp -a /tmp/MinimaxFlora_pkgs/AdGuardHome ./
           cp -a /tmp/MinimaxFlora_pkgs/luci-app-adguardhome ./
           rm -rf /tmp/MinimaxFlora_pkgs
-          # 删除 feeds 中同名的 luci-app-adguardhome，
-          # 避免它覆盖或冲突于本地源码
-          cd ..
-          ./scripts/feeds uninstall luci-app-adguardhome || true  
+          echo ">>> 检查本地源码..."
+          test -f luci-app-adguardhome/Makefile
+          test -d luci-app-adguardhome/po
 
       - name: Check LuCI source
         run: |
@@ -130,7 +132,7 @@ jobs:
           echo "CONFIG_LUCI_LANG_zh_Hans=y" >> .config
           echo "CONFIG_PACKAGE_adguardhome=m" >> .config
           echo "CONFIG_PACKAGE_luci-app-adguardhome=m" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-adguardhome-zh-cn=m" >> .config
+          #echo "CONFIG_PACKAGE_luci-i18n-adguardhome-zh-cn=m" >> .config
           make defconfig
 
           echo ">>> 快速精准编译指定软件包..."
