@@ -90,9 +90,9 @@ jobs:
           echo "Downloading SDK from: ${URL}"
           wget -q "${URL}" || { echo "Download failed!"; exit 1; }
           
-          tar -xf immortalwrt-sdk-*.tar.*
-          rm immortalwrt-sdk-*.tar.*
-          mv immortalwrt-sdk-* sdk
+          tar -xf openwrt-sdk-*.tar.*
+          rm openwrt-sdk-*.tar.*
+          mv openwrt-sdk-* sdk
           
           cd sdk
           echo ">>> 更新基础 feeds..."
