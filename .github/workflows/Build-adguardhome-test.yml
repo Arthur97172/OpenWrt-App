@@ -108,9 +108,9 @@ jobs:
       
           cd package
           git clone --depth=1 https://github.com/xiaoxiao29/luci-app-adguardhome /tmp/xiaoxiao29_pkgs
-          cp -a /tmp/MinimaxFlora_pkgs/luci-app-adguardhome ./
-          cp -a /tmp/MinimaxFlora_pkgs/AdGuardHome ./
-          rm -rf /tmp/MinimaxFlora_pkgs
+          cp -a /tmp/xiaoxiao29_pkgs/luci-app-adguardhome ./
+          cp -a /tmp/xiaoxiao29_pkgs/AdGuardHome ./
+          rm -rf /tmp/xiaoxiao29_pkgs
           echo ">>> 检查本地源码..."
           test -f luci-app-adguardhome/Makefile
           test -d luci-app-adguardhome/po
