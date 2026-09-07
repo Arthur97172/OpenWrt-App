@@ -132,8 +132,8 @@ jobs:
         run: |
           ARCH="${{ matrix.arch }}"
           
-          mkdir -p output/apk/${ARCH}/turboacc
-          mkdir -p output/ipk/${ARCH}/turboacc
+          mkdir -p output/apk/${ARCH}/easymesh
+          mkdir -p output/ipk/${ARCH}/easymesh
 
           echo "=== 提取 Easymesh 编译产物 ==="
           find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
@@ -153,7 +153,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: turboacc-${{ matrix.version }}-${{ matrix.arch }}
+          name: easymesh-${{ matrix.version }}-${{ matrix.arch }}
           path: output/
 
   commit:
@@ -173,8 +173,8 @@ jobs:
 
       - name: Merge and Clean Files
         run: |
-          mkdir -p apk/x86_64/turboacc apk/aarch64_cortex-a53/turboacc apk/aarch64_generic/turboacc
-          mkdir -p ipk/x86_64/turboacc ipk/aarch64_cortex-a53/turboacc ipk/aarch64_generic/turboacc
+          mkdir -p apk/x86_64/easymesh apk/aarch64_cortex-a53/easymesh apk/aarch64_generic/easymesh
+          mkdir -p ipk/x86_64/easymesh ipk/aarch64_cortex-a53/easymesh ipk/aarch64_generic/easymesh
 
           cp -rn downloaded-artifacts/*/* . || true
           rm -rf downloaded-artifacts
@@ -190,7 +190,7 @@ jobs:
             echo "没有检测到文件更改，跳过提交"
           else
             git diff --staged --stat
-            git commit -m "自动同步 TurboACC 纯净中文版组件 - $(date +'%Y-%m-%d %H:%M:%S')"
+            git commit -m "自动同步 Easymesh 纯净中文版组件 - $(date +'%Y-%m-%d %H:%M:%S')"
             
             git pull --rebase origin main || git rebase --abort
             git push origin main
