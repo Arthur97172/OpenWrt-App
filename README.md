@@ -14,6 +14,7 @@
 | luci-app-clashoo | clashoo代理 | [clashoo](https://github.com/kenzok8/openwrt-clashoo) |
 | luci-app-cpu-status | cpu-status插件 | [cpu-status](https://github.com/OneNAS-space/luci-app-cpu-status) |
 | luci-app-daede | daede代理 | [daede](https://github.com/kenzok8/openwrt-daede) |
+| luci-app-easymesh | easymesh无线组网 | [easymesh](https://github.com/kenzok78/luci-app-easymesh) |
 | luci-app-easytier | easytier内网穿透 | [easytier](https://github.com/EasyTier/luci-app-easytier) |
 | luci-app-lucky | Lucky反向代理 | [lucky](https://github.com/sirpdboy/luci-app-lucky) |
 | luci-app-mosdns | Mosnds DNS转发器 | [mosdns](https://github.com/sbwml/luci-app-mosdns) |
