@@ -105,22 +105,13 @@ jobs:
           cd sdk    
           echo ">>> 删除 feeds 中同名的 luci-app-adguardhome..."
           ./scripts/feeds uninstall luci-app-adguardhome || true
-          ./scripts/feeds uninstall adguardhome || true
       
           cd package
-          #git clone --depth=1 https://github.com/MinimaxFlora/luci-app-adguardhome /tmp/MinimaxFlora_pkgs
-          git clone --depth=1 https://github.com/xiaoxiao29/luci-app-adguardhome /tmp/MinimaxFlora_pkgs
+          git clone --depth=1 https://github.com/MinimaxFlora/luci-app-adguardhome /tmp/MinimaxFlora_pkgs
           # 1. 复制前端界面
           if [ -d "/tmp/MinimaxFlora_pkgs/luci-app-adguardhome" ]; then
             cp -a /tmp/MinimaxFlora_pkgs/luci-app-adguardhome ./
-          fi
-
-          # 2. 复制核心程序 (如果第三方仓库根目录或子目录下存在 adguardhome 核心)
-          if [ -d "/tmp/MinimaxFlora_pkgs/AdGuardHome" ]; then
-            cp -a /tmp/MinimaxFlora_pkgs/AdGuardHome ./
-          echo "✓ 已成功替换第三方 adguardhome 核心源码"
-          else
-            echo "⚠️ 第三方仓库未包含 adguardhome 核心，将继续使用官方 Feeds 核心"
+          echo "✓ 已成功使用第三方 Luci-app-adguardhome 源码并将继续使用官方 Feeds 核心"
           fi
           echo ">>> 检查本地源码..."
           test -f luci-app-adguardhome/Makefile
