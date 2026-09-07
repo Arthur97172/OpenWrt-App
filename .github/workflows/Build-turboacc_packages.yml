@@ -17,25 +17,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- 24.10.8 版本 ---
-          - version: "24.10.8"
+          # --- 24.10 版本 ---
+          - version: "24.10.6"
             target: "x86/64"
             arch: "x86_64"
-          - version: "24.10.8"
+          - version: "24.10.6"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "24.10.8"
+          - version: "24.10.6"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
             
-          # --- 25.12.5 版本 ---
-          - version: "25.12.5"
+          # --- 25.12.1 版本 ---
+          - version: "25.12.1"
             target: "x86/64"
             arch: "x86_64"
-          - version: "25.12.5"
+          - version: "25.12.1"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "25.12.5"
+          - version: "25.12.1"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
 
@@ -57,10 +57,10 @@ jobs:
           
           # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
-            "24.10.8")
+            "24.10.6")
               GCC_VER="13.3.0"
               ;;
-            "25.12.5")
+            "25.12.1")
               GCC_VER="14.3.0"
               ;;
             *)
@@ -84,15 +84,15 @@ jobs:
               ;;
           esac
           
-          SDK_FILE="openwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
-          URL="https://downloads.openwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
+          SDK_FILE="immortalwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://downloads.immortalwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
           
           echo "Downloading SDK from: ${URL}"
           wget -q "${URL}" || { echo "Download failed!"; exit 1; }
           
-          tar -xf openwrt-sdk-*.tar.*
-          rm openwrt-sdk-*.tar.*
-          mv openwrt-sdk-* sdk
+          tar -xf immortalwrt-sdk-*.tar.*
+          rm immortalwrt-sdk-*.tar.*
+          mv immortalwrt-sdk-* sdk
           
           cd sdk
           echo ">>> 更新基础 feeds..."
