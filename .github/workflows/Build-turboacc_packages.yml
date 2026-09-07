@@ -121,6 +121,8 @@ jobs:
           # 写入 TurboACC 及其语言包配置
           echo "CONFIG_PACKAGE_luci-app-turboacc=m" >> .config
           echo "CONFIG_PACKAGE_luci-i18n-turboacc-zh-cn=m" >> .config
+          echo "CONFIG_PACKAGE_kmod-nft-fullcone=m" >> .config
+          echo "CONFIG_PACKAGE_nftables-plugin-fullcone=m" >> .config
 
           make defconfig
           echo ">>> 开始精准快速编译 TurboACC..."
