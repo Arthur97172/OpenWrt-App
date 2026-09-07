@@ -112,9 +112,6 @@ jobs:
             cp -a tmp_turboacc ./luci-app-turboacc
           fi
           rm -rf tmp_turboacc
-          
-          echo ">>> 克隆 nft-fullcone 内核模块源码..."
-          git clone --depth=1 https://github.com/8688Add/nft-fullcone
 
       - name: Configure and Fast Compile
         run: |
@@ -130,7 +127,6 @@ jobs:
           echo ">>> 开始精准快速编译 TurboACC..."
 
           # 只编译 TurboACC 目标，10-20 分钟即可完成
-          make package/nft-fullcone/compile V=s -j$(nproc) || make package/nft-fullcone/compile V=s -j1
           make package/luci-app-turboacc/compile V=s -j$(nproc) || make package/luci-app-turboacc/compile V=s -j1
 
       - name: Organize Packages
