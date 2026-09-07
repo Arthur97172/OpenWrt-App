@@ -1,0 +1,197 @@
+name: Build Easymesh Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 北京时间每两天凌晨 5:00 自动触发 (UTC 21:00)
+    - cron: '0 21 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10.8 版本 ---
+          - version: "24.10.8"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.8"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.8"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+            
+          # --- 25.12.5 版本 ---
+          - version: "25.12.5"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.5"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.5"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          ARCH="${{ matrix.arch }}"
+          
+          # 根据版本自动匹配对应的 GCC 版本号
+          case "${VER}" in
+            "24.10.8")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.5")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
+          esac
+          
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
+          case "${TARGET}" in
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2710")
+              TARGET_STR="bcm27xx-bcm2710"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
+          esac
+          
+          SDK_FILE="openwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://downloads.openwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
+          
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+          
+          tar -xf openwrt-sdk-*.tar.*
+          rm openwrt-sdk-*.tar.*
+          mv openwrt-sdk-* sdk
+          
+          cd sdk
+          echo ">>> 更新基础 feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Clone Easymesh
+        run: |
+          set -e
+          cd sdk/package
+
+          echo ">>> 克隆 Easymesh 主仓库..."
+          git clone --depth=1 https://github.com/kenzok78/luci-app-easymesh tmp_easymesh
+          if [ -d "tmp_easymesh/luci-app-easymesh" ]; then
+            cp -a tmp_easymesh/luci-app-easymesh ./
+          else
+            cp -a tmp_turboacc ./luci-app-easymesh
+          fi
+          rm -rf tmp_easymesh
+
+      - name: Configure and Fast Compile
+        run: |
+          set -e
+          cd sdk
+
+          # 写入 Easymesh 及其语言包配置
+          echo "CONFIG_PACKAGE_luci-app-easymesh=m" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-easymesh-zh-cn=m" >> .config
+
+          make defconfig
+          echo ">>> 开始精准快速编译 Easymesh..."
+
+          # 只编译 Easymesh 目标，1-2 分钟即可完成
+          make package/luci-app-easymesh/compile V=s -j$(nproc) || make package/luci-app-easymesh/compile V=s -j1
+
+      - name: Organize Packages
+        run: |
+          ARCH="${{ matrix.arch }}"
+          
+          mkdir -p output/apk/${ARCH}/turboacc
+          mkdir -p output/ipk/${ARCH}/turboacc
+
+          echo "=== 提取 Easymesh 编译产物 ==="
+          find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+            
+            # 提取 Easymesh 及其关联包（包含 luci-app-easymesh 和 luci-i18n-easymesh-zh-cn）
+            if [[ "$filename" == *"easymesh"* ]]; then
+            #if [[ "$filename" == *"easymesh"* ]] || [[ "$filename" == *"nft-fullcone"* ]]; then
+              if [[ "$f" == *.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/easymesh/
+              elif [[ "$f" == *.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/easymesh/
+              fi
+            fi
+          done
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: turboacc-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Commit & Push Packages
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Merge and Clean Files
+        run: |
+          mkdir -p apk/x86_64/turboacc apk/aarch64_cortex-a53/turboacc apk/aarch64_generic/turboacc
+          mkdir -p ipk/x86_64/turboacc ipk/aarch64_cortex-a53/turboacc ipk/aarch64_generic/turboacc
+
+          cp -rn downloaded-artifacts/*/* . || true
+          rm -rf downloaded-artifacts
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add apk/ ipk/
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 TurboACC 纯净中文版组件 - $(date +'%Y-%m-%d %H:%M:%S')"
+            
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
