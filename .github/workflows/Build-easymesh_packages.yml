@@ -109,7 +109,7 @@ jobs:
           if [ -d "tmp_easymesh/luci-app-easymesh" ]; then
             cp -a tmp_easymesh/luci-app-easymesh ./
           else
-            cp -a tmp_turboacc ./luci-app-easymesh
+            cp -a tmp_easymesh ./luci-app-easymesh
           fi
           rm -rf tmp_easymesh
 
