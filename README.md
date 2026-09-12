@@ -18,6 +18,7 @@
 | luci-app-easytier | easytier内网穿透 | [easytier](https://github.com/EasyTier/luci-app-easytier) |
 | luci-app-lucky | Lucky反向代理 | [lucky](https://github.com/sirpdboy/luci-app-lucky) |
 | luci-app-mosdns | Mosnds DNS转发器 | [mosdns](https://github.com/sbwml/luci-app-mosdns) |
+| luci-app-netspeedtest | Netspeedtest 网速测试 | [netspeedtest](https://github.com/muink/luci-app-netspeedtest) |
 | luci-app-netwizard | 网络配置向导插件 | [netwizard](https://github.com/sirpdboy/luci-app-netwizard) |
 | luci-app-nikki | nikki代理 | [nikki](https://github.com/nikkinikki-org/OpenWrt-nikki)  |
 | luci-app-openclash | openclash代理 | [openclash](https://github.com/vernesong/OpenClash)  |
