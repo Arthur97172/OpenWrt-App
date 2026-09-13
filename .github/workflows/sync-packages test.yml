@@ -26,7 +26,7 @@ jobs:
 
             # 架构特定的 apk
             for arch_variant in "$arch"; do
-              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("-" + $av + "\\.apk$")) | .browser_download_url'); do
+              for url in $(echo "$RESPONSE" | jq -r --arg av "$arch_variant" '.assets[] | select(.name | test("_" + $av + "\\.apk$")) | .browser_download_url'); do
                 if [ -n "$url" ] && [ "$url" != "null" ]; then
                   curl -sL "$url" -o "apk/$arch/tailscale/$(basename "$url")" 2>/dev/null && echo "  APK: $(basename "$url")"
                 fi
