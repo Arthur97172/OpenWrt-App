@@ -27,6 +27,9 @@ jobs:
           - version: "24.10.8"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
+          - version: "24.10.8"
+            target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a72"
             
           # --- 25.12.5 版本 ---
           - version: "25.12.5"
@@ -38,7 +41,10 @@ jobs:
           - version: "25.12.5"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
-
+          - version: "25.12.5"
+            target: "bcm27xx/bcm2711"
+            arch: "aarch64_cortex-a72"
+            
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -78,6 +84,10 @@ jobs:
               ;;
             "bcm27xx/bcm2710")
               TARGET_STR="bcm27xx-bcm2710"
+              ;;
+            *)
+            "bcm27xx/bcm2711")
+              TARGET_STR="bcm27xx/bcm2711"
               ;;
             *)
               TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
@@ -183,8 +193,8 @@ jobs:
 
       - name: Move Files
         run: |
-          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_generic/adguardhome
-          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_generic/adguardhome
+          mkdir -p apk/x86_64/adguardhome apk/aarch64_cortex-a53/adguardhome apk/aarch64_cortex-a72/adguardhome apk/aarch64_generic/adguardhome
+          mkdir -p ipk/x86_64/adguardhome ipk/aarch64_cortex-a53/adguardhome ipk/aarch64_cortex-a72/adguardhome ipk/aarch64_generic/adguardhome
           cp -rn downloaded-artifacts/*/* . || true
           rm -rf downloaded-artifacts
 
