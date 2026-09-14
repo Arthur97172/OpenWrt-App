@@ -647,8 +647,8 @@ jobs:
       - name: Download and sync passwall packages
         run: |
           # 1. 统一创建目录并初始化（只在这里清空一次，防止后面的下载被覆盖删除）
-          mkdir -p apk/x86_64/passwall apk/aarch64_cortex-a53/passwall apk/aarch64_generic/passwall
-          mkdir -p ipk/x86_64/passwall ipk/aarch64_cortex-a53/passwall ipk/aarch64_generic/passwall
+          mkdir -p apk/x86_64/passwall apk/aarch64_cortex-a53/passwall apk/aarch64_cortex-a73/passwall apk/aarch64_generic/passwall
+          mkdir -p ipk/x86_64/passwall ipk/aarch64_cortex-a53/passwall ipk/aarch64_cortex-a73/passwall ipk/aarch64_generic/passwall
           rm -f apk/*/passwall/* ipk/*/passwall/* 2>/dev/null || true
 
           # ==========================================
@@ -657,7 +657,7 @@ jobs:
           echo ">>> 正在同步 openwrt-passwall 仓库..."
           RESPONSE1=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall/releases/latest")
 
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== passwall(1) $arch ==="
 
             # 架构特定的 apk (25.12+)
@@ -716,7 +716,7 @@ jobs:
           echo ">>> 正在同步 openwrt-passwall2 仓库..."
           RESPONSE2=$(curl -sL "https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall2/releases/latest")
 
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== passwall(2) $arch ==="
 
             # ----------------------------------------
@@ -800,11 +800,11 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/vernesong/OpenClash/releases/latest")
 
-          mkdir -p apk/x86_64/openclash apk/aarch64_cortex-a53/openclash apk/aarch64_generic/openclash
-          mkdir -p ipk/x86_64/openclash ipk/aarch64_cortex-a53/openclash ipk/aarch64_generic/openclash
+          mkdir -p apk/x86_64/openclash apk/aarch64_cortex-a53/openclash apk/aarch64_cortex-a73/openclash apk/aarch64_generic/openclash
+          mkdir -p ipk/x86_64/openclash ipk/aarch64_cortex-a53/openclash ipk/aarch64_cortex-a73/openclash ipk/aarch64_generic/openclash
           rm -f apk/*/openclash/* ipk/*/openclash/* 2>/dev/null || true
 
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== openclash $arch ==="
 
             # 架构特定的 apk (如 x86_64.apk)
@@ -851,12 +851,12 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/nikkinikki-org/OpenWrt-nikki/releases/latest")
 
-          mkdir -p apk/x86_64/nikki apk/aarch64_cortex-a53/nikki apk/aarch64_generic/nikki
-          mkdir -p ipk/x86_64/nikki ipk/aarch64_cortex-a53/nikki ipk/aarch64_generic/nikki
+          mkdir -p apk/x86_64/nikki apk/aarch64_cortex-a53/nikki apk/aarch64_cortex-a73/nikki apk/aarch64_generic/nikki
+          mkdir -p ipk/x86_64/nikki ipk/aarch64_cortex-a53/nikki ipk/aarch64_cortex-a73/nikki ipk/aarch64_generic/nikki
           rm -f apk/*/nikki/* ipk/*/nikki/* 2>/dev/null || true
 
           # ==================== 1. 下载并解压 APK (25.12) ====================
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== nikki APK $arch ==="
             # 采用安全的 select 和 contains 组合，精准抓取 25.12 的 tar.gz
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[]? | select(.name | contains(\"nikki_${arch}-openwrt-25.12.tar.gz\")) | .browser_download_url" 2>/dev/null)
@@ -874,7 +874,7 @@ jobs:
           done
 
           # ==================== 2. 下载并解压 IPK (24.10) ====================
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== nikki IPK $arch ==="
             # 采用安全的 select 和 contains 组合，精准抓取 24.10 的 tar.gz
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[]? | select(.name | contains(\"nikki_${arch}-openwrt-24.10.tar.gz\")) | .browser_download_url" 2>/dev/null)
@@ -894,8 +894,8 @@ jobs:
       - name: Download and sync bandix packages
         run: |
           # 1. 创建目标目录并清理旧文件
-          mkdir -p apk/x86_64/bandix apk/aarch64_cortex-a53/bandix apk/aarch64_generic/bandix
-          mkdir -p ipk/x86_64/bandix ipk/aarch64_cortex-a53/bandix ipk/aarch64_generic/bandix
+          mkdir -p apk/x86_64/bandix apk/aarch64_cortex-a53/bandix apk/aarch64_cortex-a73/bandix apk/aarch64_generic/bandix
+          mkdir -p ipk/x86_64/bandix ipk/aarch64_cortex-a53/bandix ipk/aarch64_cortex-a73/bandix ipk/aarch64_generic/bandix
           rm -f apk/*/bandix/* ipk/*/bandix/* 2>/dev/null || true
 
           # =================================================================
@@ -908,7 +908,7 @@ jobs:
           for url in $(echo "$RESPONSE_LUCI" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
             if [ -n "$url" ]; then
               filename=$(basename "$url")
-              for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+              for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
                 curl -sL "$url" -o "apk/$arch/bandix/$filename" 2>/dev/null || true
               done
               echo "  📦 APK: $filename (全架构复制)"
@@ -919,7 +919,7 @@ jobs:
           for url in $(echo "$RESPONSE_LUCI" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
             if [ -n "$url" ]; then
               filename=$(basename "$url")
-              for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+              for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
                 curl -sL "$url" -o "ipk/$arch/bandix/$filename" 2>/dev/null || true
               done
               echo "  📦 IPK: $filename (全架构复制)"
@@ -957,6 +957,11 @@ jobs:
                 curl -sL "$url" -o "$type_dir/aarch64_cortex-a53/bandix/$filename" 2>/dev/null || true
                 echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a53/bandix/"
 
+              elif [[ "$filename" == *"aarch64_cortex-a73"* ]]; then
+                # 专属于 cortex-a73 的包
+                curl -sL "$url" -o "$type_dir/aarch64_cortex-a73/bandix/$filename" 2>/dev/null || true
+                echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a73/bandix/"
+
               elif [[ "$filename" == *"aarch64_generic"* ]]; then
                 # 专属于 aarch64_generic 的包
                 curl -sL "$url" -o "$type_dir/aarch64_generic/bandix/$filename" 2>/dev/null || true
@@ -964,7 +969,7 @@ jobs:
 
               elif [[ "$filename" == *"_all"* ]]; then
                 # 通用包放行到所有架构
-                for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+                for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
                   curl -sL "$url" -o "$type_dir/$arch/bandix/$filename" 2>/dev/null || true
                 done
                 echo "  🎯 Core: $filename -> 全架构复制(_all)"
@@ -980,8 +985,8 @@ jobs:
       - name: Download and sync bandix-plus packages
         run: |
           # 1. 创建目标目录并清理旧文件
-          mkdir -p apk/x86_64/bandix-plus apk/aarch64_cortex-a53/bandix-plus apk/aarch64_generic/bandix-plus
-          mkdir -p ipk/x86_64/bandix-plus ipk/aarch64_cortex-a53/bandix-plus ipk/aarch64_generic/bandix-plus
+          mkdir -p apk/x86_64/bandix-plus apk/aarch64_cortex-a53/bandix-plus apk/aarch64_cortex-a73/bandix-plus apk/aarch64_generic/bandix-plus
+          mkdir -p ipk/x86_64/bandix-plus ipk/aarch64_cortex-a53/bandix-plus ipk/aarch64_cortex-a73/bandix-plus ipk/aarch64_generic/bandix-plus
           rm -f apk/*/bandix-plus/* ipk/*/bandix-plus/* 2>/dev/null || true
 
           # =================================================================
@@ -994,7 +999,7 @@ jobs:
           for url in $(echo "$RESPONSE_LUCI" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
             if [ -n "$url" ]; then
               filename=$(basename "$url")
-              for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+              for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
                 curl -sL "$url" -o "apk/$arch/bandix-plus/$filename" 2>/dev/null || true
               done
               echo "  📦 APK: $filename (全架构复制)"
@@ -1005,7 +1010,7 @@ jobs:
           for url in $(echo "$RESPONSE_LUCI" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
             if [ -n "$url" ]; then
               filename=$(basename "$url")
-              for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+              for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
                 curl -sL "$url" -o "ipk/$arch/bandix-plus/$filename" 2>/dev/null || true
               done
               echo "  📦 IPK: $filename (全架构复制)"
@@ -1043,6 +1048,11 @@ jobs:
                 curl -sL "$url" -o "$type_dir/aarch64_cortex-a53/bandix-plus/$filename" 2>/dev/null || true
                 echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a53/bandix-plus/"
 
+              elif [[ "$filename" == *"aarch64_cortex-a73"* ]]; then
+                # 专属于 cortex-a73 的包
+                curl -sL "$url" -o "$type_dir/aarch64_cortex-a73/bandix-plus/$filename" 2>/dev/null || true
+                echo "  🎯 Core: $filename -> $type_dir/aarch64_cortex-a73/bandix-plus/"
+
               elif [[ "$filename" == *"aarch64_generic"* ]]; then
                 # 专属于 aarch64_generic 的包
                 curl -sL "$url" -o "$type_dir/aarch64_generic/bandix-plus/$filename" 2>/dev/null || true
@@ -1050,7 +1060,7 @@ jobs:
 
               elif [[ "$filename" == *"_all"* ]]; then
                 # 通用包放行到所有架构
-                for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+                for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
                   curl -sL "$url" -o "$type_dir/$arch/bandix-plus/$filename" 2>/dev/null || true
                 done
                 echo "  🎯 Core: $filename -> 全架构复制(_all)"
@@ -1081,13 +1091,13 @@ jobs:
           echo "✅ 成功获取 Release 数据"
 
           # 初始化目录
-          mkdir -p apk/x86_64/mosdns apk/aarch64_cortex-a53/mosdns apk/aarch64_generic/mosdns
-          mkdir -p ipk/x86_64/mosdns ipk/aarch64_cortex-a53/mosdns ipk/aarch64_generic/mosdns
+          mkdir -p apk/x86_64/mosdns apk/aarch64_cortex-a53/mosdns apk/aarch64_cortex-a73/mosdns apk/aarch64_generic/mosdns
+          mkdir -p ipk/x86_64/mosdns ipk/aarch64_cortex-a53/mosdns ipk/aarch64_cortex-a73/mosdns ipk/aarch64_generic/mosdns
           rm -f apk/*/mosdns/* ipk/*/mosdns/* 2>/dev/null || true
 
           # ==================== 处理 APK (25.12) ====================
           echo "=== 处理 mosdns APK (25.12) ==="
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== mosdns APK $arch ==="
 
             TARGZ_URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '
@@ -1113,7 +1123,7 @@ jobs:
 
           # ==================== 处理 IPK (24.10) ====================
           echo "=== 处理 mosdns IPK (24.10) ==="
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== mosdns IPK $arch ==="
 
             TARGZ_URL=$(echo "$RESPONSE" | jq -r --arg arch "$arch" '
@@ -1139,15 +1149,15 @@ jobs:
 
       - name: Download and sync aurora packages
         run: |
-          mkdir -p apk/x86_64/aurora apk/aarch64_cortex-a53/aurora apk/aarch64_generic/aurora
-          mkdir -p ipk/x86_64/aurora ipk/aarch64_cortex-a53/aurora ipk/aarch64_generic/aurora
+          mkdir -p apk/x86_64/aurora apk/aarch64_cortex-a53/aurora apk/aarch64_cortex-a73/aurora apk/aarch64_generic/aurora
+          mkdir -p ipk/x86_64/aurora ipk/aarch64_cortex-a53/aurora ipk/aarch64_cortex-a73/aurora ipk/aarch64_generic/aurora
           rm -f apk/*/aurora/* ipk/*/aurora/* 2>/dev/null || true
 
           # 下载 luci-theme-aurora (APK)
           echo "=== aurora APK (luci-theme-aurora) ==="
           THEME=$(curl -sL "https://api.github.com/repos/eamonxg/luci-theme-aurora/releases/latest")
           for url in $(echo "$THEME" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
-            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
               curl -sL "$url" -o "apk/$arch/aurora/$filename" 2>/dev/null || true
             done && echo "  $filename"
           done
@@ -1155,7 +1165,7 @@ jobs:
           # 下载 luci-theme-aurora (IPK)
           echo "=== aurora IPK (luci-theme-aurora) ==="
           for url in $(echo "$THEME" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
-            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
               curl -sL "$url" -o "ipk/$arch/aurora/$filename" 2>/dev/null || true
             done && echo "  $filename"
           done
@@ -1164,7 +1174,7 @@ jobs:
           echo "=== aurora APK (luci-app-aurora-config) ==="
           APP=$(curl -sL "https://api.github.com/repos/eamonxg/luci-app-aurora-config/releases/latest")
           for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".apk")) | .browser_download_url'); do
-            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
               curl -sL "$url" -o "apk/$arch/aurora/$filename" 2>/dev/null || true
             done && echo "  $filename"
           done
@@ -1172,7 +1182,7 @@ jobs:
           # 下载 luci-app-aurora-config (IPK)
           echo "=== aurora IPK (luci-app-aurora-config) ==="
           for url in $(echo "$APP" | jq -r '.assets[] | select(.name | endswith(".ipk")) | .browser_download_url'); do
-            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            [ -n "$url" ] && filename=$(basename "$url") && for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
               curl -sL "$url" -o "ipk/$arch/aurora/$filename" 2>/dev/null || true
             done && echo "  $filename"
           done
@@ -1181,12 +1191,12 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-poweroffdevice/releases/latest")
 
-          mkdir -p apk/x86_64/poweroffdevice apk/aarch64_cortex-a53/poweroffdevice apk/aarch64_generic/poweroffdevice
-          mkdir -p ipk/x86_64/poweroffdevice ipk/aarch64_cortex-a53/poweroffdevice ipk/aarch64_generic/poweroffdevice
+          mkdir -p apk/x86_64/poweroffdevice apk/aarch64_cortex-a53/poweroffdevice apk/aarch64_cortex-a73/poweroffdevice apk/aarch64_generic/poweroffdevice
+          mkdir -p ipk/x86_64/poweroffdevice ipk/aarch64_cortex-a53/poweroffdevice ipk/aarch64_cortex-a73/poweroffdevice ipk/aarch64_generic/poweroffdevice
           rm -f apk/*/poweroffdevice/* ipk/*/poweroffdevice/* 2>/dev/null || true
 
           # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== poweroffdevice APK $arch ==="
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
@@ -1203,7 +1213,7 @@ jobs:
           done
 
           # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== poweroffdevice IPK $arch ==="
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
@@ -1223,12 +1233,12 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-partexp/releases/latest")
 
-          mkdir -p apk/x86_64/partexp apk/aarch64_cortex-a53/partexp apk/aarch64_generic/partexp
-          mkdir -p ipk/x86_64/partexp ipk/aarch64_cortex-a53/partexp ipk/aarch64_generic/partexp
+          mkdir -p apk/x86_64/partexp apk/aarch64_cortex-a53/partexp apk/aarch64_cortex-a73/partexp apk/aarch64_generic/partexp
+          mkdir -p ipk/x86_64/partexp ipk/aarch64_cortex-a53/partexp ipk/aarch64_cortex-a73/partexp ipk/aarch64_generic/partexp
           rm -f apk/*/partexp/* ipk/*/partexp/* 2>/dev/null || true
 
           # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== partexp APK $arch ==="
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
@@ -1245,7 +1255,7 @@ jobs:
           done
 
           # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== partexp IPK $arch ==="
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
@@ -1265,12 +1275,12 @@ jobs:
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-netwizard/releases/latest")
 
-          mkdir -p apk/x86_64/netwizard apk/aarch64_cortex-a53/netwizard apk/aarch64_generic/netwizard
-          mkdir -p ipk/x86_64/netwizard ipk/aarch64_cortex-a53/netwizard ipk/aarch64_generic/netwizard
+          mkdir -p apk/x86_64/netwizard apk/aarch64_cortex-a53/netwizard apk/aarch64_cortex-a73/netwizard apk/aarch64_generic/netwizard
+          mkdir -p ipk/x86_64/netwizard ipk/aarch64_cortex-a53/netwizard ipk/aarch64_cortex-a73/netwizard ipk/aarch64_generic/netwizard
           rm -f apk/*/netwizard/* ipk/*/netwizard/* 2>/dev/null || true
 
           # 下载并解压 apk (SNAPSHOT.tar.gz) - 里面是 apk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== netwizard APK $arch ==="
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
@@ -1287,7 +1297,7 @@ jobs:
           done
 
           # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+          for arch in x86_64 aarch64_cortex-a53 aarch64_cortex-a73 aarch64_generic; do
             echo "=== netwizard IPK $arch ==="
             TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
 
