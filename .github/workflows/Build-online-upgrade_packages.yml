@@ -3,8 +3,8 @@ name: Build Oneline-upgrade Packages
 on:
   workflow_dispatch:
   schedule:
-    # 北京时间每两天凌晨 5:00 自动触发 (UTC 21:00)
-    - cron: '0 21 */2 * *'
+    # 北京时间每两天早晨 7:00 自动触发 (UTC 23:00)
+    - cron: '0 23 */2 * *'
 
 permissions:
   contents: write
