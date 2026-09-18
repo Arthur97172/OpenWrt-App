@@ -21,6 +21,7 @@
 | luci-app-netspeedtest | Netspeedtest 网速测试 | [netspeedtest](https://github.com/muink/luci-app-netspeedtest) |
 | luci-app-netwizard | 网络配置向导插件 | [netwizard](https://github.com/sirpdboy/luci-app-netwizard) |
 | luci-app-nikki | nikki代理 | [nikki](https://github.com/nikkinikki-org/OpenWrt-nikki)  |
+| luci-app-online-upgrade | online-upgrade在线升级 | [online-upgrade](https://github.com/gooyjq/luci-app-online-upgrade)  |
 | luci-app-openclash | openclash代理 | [openclash](https://github.com/vernesong/OpenClash)  |
 | luci-app-partexp | 分区扩容插件 | [partexp](https://github.com/sirpdboy/luci-app-partexp) |
 | luci-app-passwall | passwall代理 | [passwall](https://github.com/Openwrt-Passwall/openwrt-passwall) |
