@@ -1,0 +1,175 @@
+name: Build NSS Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 北京时间每两天凌晨 4:00 自动触发 (UTC 20:00)
+    - cron: '0 20 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build NSS (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10.8 版本 (高通 ipq807x) ---
+          - version: "24.10.8"
+            target: "qualcommax/ipq807x"
+            arch: "aarch64_cortex-a53"
+            sdk_target: "qualcommax-ipq807x"
+            
+          # --- 25.12.5 版本 (高通 ipq807x) ---
+          - version: "25.12.5"
+            target: "qualcommax/ipq807x"
+            arch: "aarch64_cortex-a53"
+            sdk_target: "qualcommax-ipq807x"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET_STR="${{ matrix.sdk_target }}"
+          
+          # 根据版本自动匹配对应的 GCC 版本号
+          case "${VER}" in
+            "24.10.8")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.5")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
+          esac
+          
+          SDK_FILE="openwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://downloads.openwrt.org/releases/${VER}/targets/${{ matrix.target }}/${SDK_FILE}"
+          
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+          
+          tar -xf openwrt-sdk-*.tar.*
+          rm openwrt-sdk-*.tar.*
+          mv openwrt-sdk-* sdk
+          
+          cd sdk
+          echo ">>> 更新基础 feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Pull and Extract NSS Source from qosmio/openwrt-ipq
+        run: |
+          set -e
+          
+          echo ">>> 克隆 qosmio/openwrt-ipq (24.10-nss 分支)..."
+          git clone --depth=1 --branch 24.10-nss https://github.com/qosmio/openwrt-ipq.git /tmp/openwrt-ipq
+          
+          cd sdk
+          mkdir -p package/custom-nss
+          
+          echo ">>> 精准提取指定源码..."
+          # 1. 提取 luci-app-nss
+          find /tmp/openwrt-ipq -type d -name "luci-app-nss" -exec cp -rf {} package/custom-nss/ \;
+          # 2. 提取 luci-i18n-nss-zh-cn
+          find /tmp/openwrt-ipq -type d -name "luci-i18n-nss-zh-cn" -exec cp -rf {} package/custom-nss/ \;
+          # 3. 提取 qca-nss-fw-ipq8074
+          find /tmp/openwrt-ipq -type d -name "qca-nss-fw-ipq8074" -exec cp -rf {} package/custom-nss/ \;
+          
+          echo ">>> 检查本地提取结果..."
+          test -d package/custom-nss/luci-app-nss
+          test -d package/custom-nss/luci-i18n-nss-zh-cn
+          test -d package/custom-nss/qca-nss-fw-ipq8074
+          echo "✓ NSS 相关源码成功挂载至 SDK"
+
+      - name: Configure Packages
+        run: |
+          set -e
+          cd sdk
+          
+          echo "CONFIG_PACKAGE_luci-app-nss=m" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-nss-zh-cn=m" >> .config
+          echo "CONFIG_PACKAGE_qca-nss-fw-ipq8074=m" >> .config
+          
+          make defconfig
+
+      - name: Compile Specified Packages
+        run: |
+          set -e
+          cd sdk
+          
+          echo ">>> 开始并行/串行精准编译 NSS 插件与固件..."
+          make package/luci-app-nss/compile V=s -j$(nproc) || make package/luci-app-nss/compile V=s -j1
+          make package/luci-i18n-nss-zh-cn/compile V=s -j$(nproc) || make package/luci-i18n-nss-zh-cn/compile V=s -j1
+          make package/qca-nss-fw-ipq8074/compile V=s -j$(nproc) || make package/qca-nss-fw-ipq8074/compile V=s -j1
+
+      - name: Pack Files
+        run: |
+          ARCH="${{ matrix.arch }}"
+          mkdir -p output/apk/${ARCH}/nss output/ipk/${ARCH}/nss
+          
+          echo "=== 提取编译产物 (.apk / .ipk) ==="
+          find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+            if [[ "$filename" == *"nss"* ]] || [[ "$filename" == *"qca-nss"* ]]; then
+              if [[ "$f" == *.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/nss/
+              elif [[ "$f" == *.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/nss/
+              fi
+            fi
+          done
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-packages-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Save to Repo
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Files
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Move Files
+        run: |
+          mkdir -p apk/aarch64_cortex-a53/nss ipk/aarch64_cortex-a53/nss
+          cp -rn downloaded-artifacts/*/* . || true
+          rm -rf downloaded-artifacts
+
+      - name: Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add apk/ ipk/
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Auto sync NSS Packages (24.10 & 25.12) - $(date +'%Y-%m-%d %H:%M:%S')"
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
