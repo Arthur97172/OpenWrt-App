@@ -105,7 +105,7 @@ jobs:
           cd sdk/package
 
           echo ">>> 克隆 Oneline-upgrade 主仓库..."
-          git clone --depth=1 https://github.com/gooyjq/luci-app-online-upgrade tmp_online
+          git clone --depth=1 https://github.com/Arthur97172/luci-app-online-upgrade tmp_online
           if [ -d "tmp_online/luci-app-online-upgrade" ]; then
             cp -a tmp_online/luci-app-online-upgrade ./
           else
