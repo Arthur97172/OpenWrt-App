@@ -1,4 +1,4 @@
-name: Build Oneline-upgrade Packages
+name: Build Online-upgrade Packages
 
 on:
   workflow_dispatch:
