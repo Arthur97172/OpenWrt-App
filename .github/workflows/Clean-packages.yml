@@ -1,0 +1,78 @@
+name: Clean Package Directory
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_dir:
+        description: '选择要清理的目录名称'
+        required: true
+        default: 'adguardhome'
+        type: choice
+        options:
+          - adguardhome
+          - amlogic
+          - argon
+          - aurora
+          - bandix-plus
+          - bandix
+          - clashoo
+          - cupstatus
+          - deade
+          - easymesh
+          - easytier
+          - lucky
+          - mosdns
+          - netspeedtest
+          - netwizard
+          - nikki
+          - online-upgrade
+          - openclash
+          - partexp
+          - passwall
+          - passwall_pkgs
+          - poweroffdeivce
+          - rtp2httpd
+          - run
+          - substore
+          - tailscale
+          - taskplan
+          - timecontrol
+          - turboacc
+          - watchdog
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    name: Clean and Sync Repo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Execute Cleanup
+        run: |
+          TARGET="${{ github.event.inputs.target_dir }}"
+          echo "准备清理所有架构下的目录: ${TARGET}"
+          
+          # 在所有架构的 apk 和 ipk 目录下查找并删除匹配的文件夹
+          rm -rf apk/*/${TARGET} ipk/*/${TARGET}
+          
+          echo "清理动作执行完毕！"
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]"
+          git config --local user.name "github-actions[bot]"
+          git add apk/ ipk/
+          
+          if git diff --staged --quiet; then
+            echo "没有检测到更改（该目录下可能本来就没有这个文件夹）"
+          else
+            git commit -m "Clean directory: ${{ github.event.inputs.target_dir }} - $(date +'%Y-%m-%d %H:%M:%S')"
+            git pull --rebase origin main || git rebase --abort
+            git push origin main
+          fi
