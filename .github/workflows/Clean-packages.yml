@@ -6,7 +6,7 @@ on:
       target_dir:
         description: '选择要清理的目录名称'
         required: true
-        default: 'adguardhome'
+        default: 'substore'
         type: choice
         options:
           - adguardhome
