@@ -1,4 +1,4 @@
-name: Clean Package Directory
+name: 💿 Clean Package Directory
 
 on:
   workflow_dispatch:
