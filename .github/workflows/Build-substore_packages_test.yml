@@ -1,0 +1,156 @@
+name: Build Substore Packages Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 北京时间每两天早晨 7:00 自动触发 (UTC 23:00)
+    - cron: '0 23 */2 * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10.8 版本 ---
+          - version: "24.10.8"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.8"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.8"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+            
+          # --- 25.12.5 版本 ---
+          - version: "25.12.5"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.5"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.5"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
+
+      - name: Download & Extract OpenWrt SDK
+        run: |
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          ARCH="${{ matrix.arch }}"
+          
+          # 根据版本自动匹配对应的 GCC 版本号
+          case "${VER}" in
+            "24.10.8")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.5")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
+          esac
+          
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
+          case "${TARGET}" in
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2710")
+              TARGET_STR="bcm27xx-bcm2710"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
+          esac
+          
+          SDK_FILE="openwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://downloads.openwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
+          
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+          
+          tar -xf openwrt-sdk-*.tar.*
+          rm openwrt-sdk-*.tar.*
+          mv openwrt-sdk-* sdk
+          
+          cd sdk
+          echo ">>> 更新基础 feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Clone Oneline-upgrade
+        run: |
+          set -e
+          cd sdk/package
+
+          echo ">>> 克隆 Substore 主仓库..."
+          git clone --depth=1 https://github.com/Arthur97172/luci-app-substore tmp_substore
+          if [ -d "tmp_substore/luci-app-substore" ]; then
+            cp -a tmp_substore/luci-app-substore ./
+          else
+            cp -a tmp_substore ./luci-app-substore
+          fi
+          rm -rf tmp_substore
+
+      - name: Configure and Fast Compile
+        run: |
+          set -e
+          cd sdk
+
+          # 写入 Oneline-upgrade 及其语言包配置
+          echo "CONFIG_PACKAGE_luci-app-substore=m" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-substore-zh-cn=m" >> .config
+
+          make defconfig
+          echo ">>> 开始精准快速编译 Substore..."
+
+          # 只编译 Substore 目标，1-2 分钟即可完成
+          make package/luci-app-substore/compile V=s -j$(nproc) || make package/luci-app-substore/compile V=s -j1
+
+      - name: Organize Packages
+        run: |
+          ARCH="${{ matrix.arch }}"
+          
+          mkdir -p output/apk/${ARCH}/substore
+          mkdir -p output/ipk/${ARCH}/substore
+
+          echo "=== 提取 Substore 编译产物 ==="
+          find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+            
+            # 提取 Substore 及其关联包（包含 luci-app-substore 和 luci-i18n-substore-zh-cn）
+            if [[ "$filename" == *"substore"* ]]; then
+              if [[ "$f" == *.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/substore/
+              elif [[ "$f" == *.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/substore/
+              fi
+            fi
+          done
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: substore-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
