@@ -19,10 +19,10 @@ jobs:
 
           mkdir -p apk/x86_64/substore apk/aarch64_cortex-a53/substore apk/aarch64_generic/substore
           mkdir -p ipk/x86_64/substore ipk/aarch64_cortex-a53/substore ipk/aarch64_generic/substore
-          rm -f apk/*/tailscale/* ipk/*/substore/* 2>/dev/null || true
+          rm -f apk/*/substore/* ipk/*/substore/* 2>/dev/null || true
 
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== tailscale $arch ==="
+            echo "=== substore $arch ==="
 
             # 通用的 apk
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
