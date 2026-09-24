@@ -15,6 +15,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download and substore packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-substore/releases/latest")
+
+          mkdir -p apk/x86_64/substore apk/aarch64_cortex-a53/substore apk/aarch64_generic/substore
+          mkdir -p ipk/x86_64/substore ipk/aarch64_cortex-a53/substore ipk/aarch64_generic/substore
+          rm -f apk/*/substore/* ipk/*/substore/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== substore $arch ==="
+
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/substore/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/substore/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
       - name: Download and sync watchdog packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-watchdog/releases/latest")
