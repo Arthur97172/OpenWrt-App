@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download and substore packages
+      - name: Download and online-upgrade packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-online-upgrade/releases/latest")
 
