@@ -1,4 +1,4 @@
-name: Build Substore Packages Test
+name: Build Turboacc Packages Test
 
 on:
   workflow_dispatch:
@@ -14,25 +14,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- 24.10.8 版本 ---
-          - version: "24.10.8"
+          # --- 24.10.6 版本 ---
+          - version: "24.10.6"
             target: "x86/64"
             arch: "x86_64"
-          - version: "24.10.8"
+          - version: "24.10.6"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "24.10.8"
+          - version: "24.10.6"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
             
-          # --- 25.12.5 版本 ---
-          - version: "25.12.5"
+          # --- 25.12.2 版本 ---
+          - version: "25.12.2"
             target: "x86/64"
             arch: "x86_64"
-          - version: "25.12.5"
+          - version: "25.12.2"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "25.12.5"
+          - version: "25.12.2"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
 
@@ -54,10 +54,10 @@ jobs:
           
           # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
-            "24.10.8")
+            "24.10.6")
               GCC_VER="13.3.0"
               ;;
-            "25.12.5")
+            "25.12.2")
               GCC_VER="14.3.0"
               ;;
             *)
@@ -96,52 +96,54 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Clone Oneline-upgrade
+      - name: Clone TurboACC
         run: |
           set -e
           cd sdk/package
 
-          echo ">>> 克隆 Substore 主仓库..."
-          git clone --depth=1 https://github.com/Arthur97172/luci-app-substore tmp_substore
-          if [ -d "tmp_substore/luci-app-substore" ]; then
-            cp -a tmp_substore/luci-app-substore ./
+          echo ">>> 克隆 TurboACC 主仓库..."
+          git clone --depth=1 https://github.com/chenmozhijin/turboacc tmp_turboacc
+          if [ -d "tmp_turboacc/luci-app-turboacc" ]; then
+            cp -a tmp_turboacc/luci-app-turboacc ./
           else
-            cp -a tmp_substore ./luci-app-substore
+            cp -a tmp_turboacc ./luci-app-turboacc
           fi
-          rm -rf tmp_substore
+          rm -rf tmp_turboacc
 
       - name: Configure and Fast Compile
         run: |
           set -e
           cd sdk
 
-          # 写入 Oneline-upgrade 及其语言包配置
-          echo "CONFIG_PACKAGE_luci-app-substore=m" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-substore-zh-cn=m" >> .config
+          # 写入 TurboACC 及其语言包配置
+          echo "CONFIG_PACKAGE_luci-app-turboacc=m" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-turboacc-zh-cn=m" >> .config
+          echo "CONFIG_PACKAGE_kmod-nft-fullcone=m" >> .config
 
           make defconfig
-          echo ">>> 开始精准快速编译 Substore..."
+          echo ">>> 开始精准快速编译 TurboACC..."
 
-          # 只编译 Substore 目标，1-2 分钟即可完成
-          make package/luci-app-substore/compile V=s -j$(nproc) || make package/luci-app-substore/compile V=s -j1
+          # 只编译 TurboACC 目标，10-20 分钟即可完成
+          make package/luci-app-turboacc/compile V=s -j$(nproc) || make package/luci-app-turboacc/compile V=s -j1
 
       - name: Organize Packages
         run: |
           ARCH="${{ matrix.arch }}"
           
-          mkdir -p output/apk/${ARCH}/substore
-          mkdir -p output/ipk/${ARCH}/substore
+          mkdir -p output/apk/${ARCH}/turboacc
+          mkdir -p output/ipk/${ARCH}/turboacc
 
-          echo "=== 提取 Substore 编译产物 ==="
+          echo "=== 提取 TurboACC 编译产物 ==="
           find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
             filename=$(basename "$f")
             
-            # 提取 Substore 及其关联包（包含 luci-app-substore 和 luci-i18n-substore-zh-cn）
-            if [[ "$filename" == *"substore"* ]]; then
+            # 提取 turboacc 及其关联包（包含 luci-app-turboacc 和 luci-i18n-turboacc-zh-cn）
+            #if [[ "$filename" == *"turboacc"* ]]; then
+            if [[ "$filename" == *"turboacc"* ]] || [[ "$filename" == *"nft-fullcone"* ]]; then
               if [[ "$f" == *.apk ]]; then
-                cp -v "$f" output/apk/${ARCH}/substore/
+                cp -v "$f" output/apk/${ARCH}/turboacc/
               elif [[ "$f" == *.ipk ]]; then
-                cp -v "$f" output/ipk/${ARCH}/substore/
+                cp -v "$f" output/ipk/${ARCH}/turboacc/
               fi
             fi
           done
@@ -149,5 +151,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: substore-${{ matrix.version }}-${{ matrix.arch }}
+          name: turboacc-${{ matrix.version }}-${{ matrix.arch }}
           path: output/
