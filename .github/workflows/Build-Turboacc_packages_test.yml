@@ -14,25 +14,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- 24.10.6 版本 ---
-          - version: "24.10.6"
+          # --- 24.10.8 版本 ---
+          - version: "24.10.8"
             target: "x86/64"
             arch: "x86_64"
-          - version: "24.10.6"
+          - version: "24.10.8"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "24.10.6"
+          - version: "24.10.8"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
             
-          # --- 25.12.2 版本 ---
-          - version: "25.12.2"
+          # --- 25.12.5 版本 ---
+          - version: "25.12.5"
             target: "x86/64"
             arch: "x86_64"
-          - version: "25.12.2"
+          - version: "25.12.5"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "25.12.2"
+          - version: "25.12.5"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
 
@@ -54,10 +54,10 @@ jobs:
           
           # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
-            "24.10.6")
+            "24.10.8")
               GCC_VER="13.3.0"
               ;;
-            "25.12.2")
+            "25.12.5")
               GCC_VER="14.3.0"
               ;;
             *)
