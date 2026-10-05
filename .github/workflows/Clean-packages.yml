@@ -20,6 +20,7 @@ on:
           - deade
           - easymesh
           - easytier
+          - ledcontrol
           - lucky
           - mosdns
           - netspeedtest
