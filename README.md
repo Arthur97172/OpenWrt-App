@@ -16,7 +16,7 @@
 | luci-app-daede | daede代理 | [daede](https://github.com/kenzok8/openwrt-daede) |
 | luci-app-easymesh | easymesh无线组网 | [easymesh](https://github.com/kenzok78/luci-app-easymesh) |
 | luci-app-easytier | easytier内网穿透 | [easytier](https://github.com/EasyTier/luci-app-easytier) |
-| luci-app-fcc | FCC AI智能 | [fcc](https://github.com/Arthur97172/luci-app-fcc) |
+| luci-app-fcc | FCC-Agent | [fcc](https://github.com/Arthur97172/luci-app-fcc) |
 | luci-app-ledcontrol | LED指示灯控制 | [ledcontrol](https://github.com/Arthur97172/luci-app-ledcontrol) |
 | luci-app-lucky | Lucky反向代理 | [lucky](https://github.com/sirpdboy/luci-app-lucky) |
 | luci-app-mosdns | Mosnds DNS转发器 | [mosdns](https://github.com/sbwml/luci-app-mosdns) |
