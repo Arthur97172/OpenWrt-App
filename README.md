@@ -35,6 +35,7 @@
 | luci-app-taskplan| taskplan任务计划 |[taskplan](https://github.com/sirpdboy/luci-app-taskplan) |
 | luci-app-timecontrol| timecontrol上网时间控制 |[timecontrol](https://github.com/sirpdboy/luci-app-timecontrol) |
 | luci-app-watchdog| watchdog看门狗 |[watchdog](https://github.com/sirpdboy/luci-app-watchdog) |
+| luci-app-wifimanager| WiFi管理 |[wifimanager](https://github.com/Arthur97172/luci-app-wifimanager) |
 ### 通过Actions每周运行自动更新！
 
 ### 本仓库的 IPK及APK 文件来自多个项目，版权归原作者。
