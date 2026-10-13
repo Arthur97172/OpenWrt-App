@@ -15,6 +15,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download and oxidns packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/svenshi/luci-app-oxidns/releases/latest")
+
+          mkdir -p apk/x86_64/oxidns apk/aarch64_cortex-a53/oxidns apk/aarch64_generic/oxidns
+          mkdir -p ipk/x86_64/oxidns ipk/aarch64_cortex-a53/oxidns ipk/aarch64_generic/oxidns
+          rm -f apk/*/oxidns/* ipk/*/oxidns/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== oxidns $arch ==="
+
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/oxidns/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/oxidns/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
       - name: Download and wifimanager packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-wifimanager/releases/latest")
