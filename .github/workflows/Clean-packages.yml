@@ -28,6 +28,7 @@ on:
           - nikki
           - online-upgrade
           - openclash
+          - oxidns
           - partexp
           - passwall
           - passwall_pkgs
