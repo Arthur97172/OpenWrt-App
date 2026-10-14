@@ -29,14 +29,16 @@ jobs:
             # 通用的 apk
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "apk/$arch/oxidns/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                filename=$(basename "$url" | sed 's/_all\./\./')
+                curl -sL "$url" -o "apk/$arch/oxidns/$filename" 2>/dev/null && echo "  APK: $filename"
               fi
             done
 
             # 通用的 ipk (_all 格式)
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
-              if [ -n "$url" ]; then
-                curl -sL "$url" -o "ipk/$arch/oxidns/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                filename=$(basename "$url" | sed 's/_all\./\./')
+                curl -sL "$url" -o "ipk/$arch/oxidns/$filename" 2>/dev/null && echo "  IPK: $filename"
               fi
             done
           done
