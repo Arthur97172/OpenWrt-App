@@ -32,7 +32,7 @@ on:
           - partexp
           - passwall
           - passwall_pkgs
-          - poweroffdeivce
+          - poweroff
           - rtp2httpd
           - run
           - substore
