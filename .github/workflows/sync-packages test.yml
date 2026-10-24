@@ -13,22 +13,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download and oxidns packages
+      - name: Download and poweroff packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/svenshi/luci-app-oxidns/releases/latest")
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-poweroff/releases/latest")
 
-          mkdir -p apk/x86_64/oxidns apk/aarch64_cortex-a53/oxidns apk/aarch64_generic/oxidns
-          mkdir -p ipk/x86_64/oxidns ipk/aarch64_cortex-a53/oxidns ipk/aarch64_generic/oxidns
-          rm -f apk/*/oxidns/* ipk/*/oxidns/* 2>/dev/null || true
+          mkdir -p apk/x86_64/poweroff apk/aarch64_cortex-a53/poweroff apk/aarch64_generic/poweroff
+          mkdir -p ipk/x86_64/poweroff ipk/aarch64_cortex-a53/poweroff ipk/aarch64_generic/poweroff
+          rm -f apk/*/poweroff/* ipk/*/poweroff/* 2>/dev/null || true
 
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== oxidns $arch ==="
+            echo "=== poweroff $arch ==="
 
             # 通用的 apk
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
                 filename=$(basename "$url" | sed 's/_all\./\./')
-                curl -sL "$url" -o "apk/$arch/oxidns/$filename" 2>/dev/null && echo "  APK: $filename"
+                curl -sL "$url" -o "apk/$arch/poweroff/$filename" 2>/dev/null && echo "  APK: $filename"
               fi
             done
 
@@ -36,7 +36,7 @@ jobs:
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
                 filename=$(basename "$url" | sed 's/_all\./\./')
-                curl -sL "$url" -o "ipk/$arch/oxidns/$filename" 2>/dev/null && echo "  IPK: $filename"
+                curl -sL "$url" -o "ipk/$arch/poweroff/$filename" 2>/dev/null && echo "  IPK: $filename"
               fi
             done
           done
