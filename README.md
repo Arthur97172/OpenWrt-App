@@ -33,7 +33,7 @@
 | luci-app-run | 插件安装工具 | [run](https://github.com/wukongdaily/luci-app-run) |
 | luci-app-substore | 订阅管理 | [substore](https://github.com/Arthur97172/luci-app-substore) |
 | luci-app-tailscale | tailscale虚拟组网 | [tailscale](https://github.com/tailscale/tailscale) |
-| luci-app-taskplan| taskplan任务计划 |[taskplan](https://github.com/sirpdboy/luci-app-taskplan) |
+| luci-app-tasks| tasks任务管理 |[taskplan](https://github.com/Arthur97172/luci-app-tasks) |
 | luci-app-timecontrol| timecontrol上网时间控制 |[timecontrol](https://github.com/sirpdboy/luci-app-timecontrol) |
 | luci-app-watchdog| watchdog看门狗 |[watchdog](https://github.com/sirpdboy/luci-app-watchdog) |
 | luci-app-wifimanager| WiFi管理 |[wifimanager](https://github.com/Arthur97172/luci-app-wifimanager) |
