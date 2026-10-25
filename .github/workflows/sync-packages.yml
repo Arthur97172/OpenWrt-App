@@ -15,6 +15,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download and tasks packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-tasks/releases/latest")
+
+          mkdir -p apk/x86_64/tasks apk/aarch64_cortex-a53/tasks apk/aarch64_generic/tasks
+          mkdir -p ipk/x86_64/tasks ipk/aarch64_cortex-a53/tasks ipk/aarch64_generic/tasks
+          rm -f apk/*/tasks/* ipk/*/tasks/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== tasks $arch ==="
+
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/tasks/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/tasks/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
       - name: Download and fcc packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-fcc/releases/latest")
@@ -205,7 +231,7 @@ jobs:
 
           mkdir -p apk/x86_64/watchdog apk/aarch64_cortex-a53/watchdog apk/aarch64_generic/watchdog
           mkdir -p ipk/x86_64/watchdog ipk/aarch64_cortex-a53/watchdog ipk/aarch64_generic/watchdog
-          rm -f apk/*/taskplan/* ipk/*/taskplan/* 2>/dev/null || true
+          rm -f apk/*/watchdog/* ipk/*/watchdog/* 2>/dev/null || true
 
           # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
@@ -247,7 +273,7 @@ jobs:
 
           mkdir -p apk/x86_64/timecontrol apk/aarch64_cortex-a53/timecontrol apk/aarch64_generic/timecontrol
           mkdir -p ipk/x86_64/timecontrol ipk/aarch64_cortex-a53/timecontrol ipk/aarch64_generic/timecontrol
-          rm -f apk/*/taskplan/* ipk/*/taskplan/* 2>/dev/null || true
+          rm -f apk/*/timecontrol/* ipk/*/timecontrol/* 2>/dev/null || true
 
           # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
@@ -671,48 +697,6 @@ jobs:
                 curl -sL "$url" -o "ipk/$arch/daede/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
               fi
             done
-          done
-
-      - name: Download and sync taskplan packages
-        run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-taskplan/releases/latest")
-
-          mkdir -p apk/x86_64/taskplan apk/aarch64_cortex-a53/taskplan apk/aarch64_generic/taskplan
-          mkdir -p ipk/x86_64/taskplan ipk/aarch64_cortex-a53/taskplan ipk/aarch64_generic/taskplan
-          rm -f apk/*/taskplan/* ipk/*/taskplan/* 2>/dev/null || true
-
-          # 下载并解压 apk (SNAPSHOT.tar.gz) - 文件名格式: SNAPSHOT-x86_64.tar.gz, 里面是 apk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== taskplan APK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
-
-            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
-              TEMP_DIR=$(mktemp -d)
-              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/taskplan.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/taskplan.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/taskplan/" \; 2>/dev/null || true
-              ls "apk/$arch/taskplan/" 2>/dev/null | head -5 || echo "  (目录为空)"
-              rm -rf "$TEMP_DIR" 2>/dev/null || true
-            else
-              echo "  未找到 APK"
-            fi
-          done
-
-          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== taskplan IPK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
-
-            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
-              TEMP_DIR=$(mktemp -d)
-              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/taskplan.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/taskplan.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/taskplan/" \; 2>/dev/null || true
-              ls "ipk/$arch/taskplan/" 2>/dev/null | head -5 || echo "  (目录为空)"
-              rm -rf "$TEMP_DIR" 2>/dev/null || true
-            else
-              echo "  未找到 IPK"
-            fi
           done
 
       - name: Download and sync tailscale packages
