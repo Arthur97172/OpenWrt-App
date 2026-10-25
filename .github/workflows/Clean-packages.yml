@@ -38,8 +38,7 @@ on:
           - run
           - substore
           - tailscale
-          - taskplan
-          - timecontrol
+          - tasks
           - turboacc
           - watchdog
           - wifimanager
