@@ -15,6 +15,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download and fcc packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-fcc/releases/latest")
+
+          mkdir -p apk/x86_64/fcc apk/aarch64_cortex-a53/fcc apk/aarch64_generic/fcc
+          mkdir -p ipk/x86_64/fcc ipk/aarch64_cortex-a53/fcc ipk/aarch64_generic/fcc
+          rm -f apk/*/fcc/* ipk/*/fcc/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== fcc $arch ==="
+
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/fcc/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/fcc/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+      
       - name: Download and poweroff packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-poweroff/releases/latest")
