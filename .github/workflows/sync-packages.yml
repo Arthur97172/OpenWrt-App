@@ -15,6 +15,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download and smartnetpilot packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-smartnetpilot/releases/latest")
+
+          mkdir -p apk/x86_64/smartnetpilot apk/aarch64_cortex-a53/smartnetpilot apk/aarch64_generic/smartnetpilot
+          mkdir -p ipk/x86_64/smartnetpilot ipk/aarch64_cortex-a53/smartnetpilot ipk/aarch64_generic/smartnetpilot
+          rm -f apk/*/smartnetpilot/* ipk/*/smartnetpilot/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== smartnetpilot $arch ==="
+
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/smartnetpilot/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/smartnetpilot/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
       - name: Download and tasks packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-tasks/releases/latest")
@@ -1323,48 +1349,6 @@ jobs:
               tar -xzf "$TEMP_DIR/partexp.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
               find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/partexp/" \; 2>/dev/null || true
               ls "ipk/$arch/partexp/" 2>/dev/null | head -5 || echo "  (目录为空)"
-              rm -rf "$TEMP_DIR" 2>/dev/null || true
-            else
-              echo "  未找到 IPK"
-            fi
-          done
-
-      - name: Download and sync netwizard packages
-        run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/sirpdboy/luci-app-netwizard/releases/latest")
-
-          mkdir -p apk/x86_64/netwizard apk/aarch64_cortex-a53/netwizard apk/aarch64_generic/netwizard
-          mkdir -p ipk/x86_64/netwizard ipk/aarch64_cortex-a53/netwizard ipk/aarch64_generic/netwizard
-          rm -f apk/*/netwizard/* ipk/*/netwizard/* 2>/dev/null || true
-
-          # 下载并解压 apk (SNAPSHOT.tar.gz) - 里面是 apk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== netwizard APK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^SNAPSHOT-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
-
-            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
-              TEMP_DIR=$(mktemp -d)
-              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/netwizard.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/netwizard.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.apk" -exec mv {} "apk/$arch/netwizard/" \; 2>/dev/null || true
-              ls "apk/$arch/netwizard/" 2>/dev/null | head -5 || echo "  (目录为空)"
-              rm -rf "$TEMP_DIR" 2>/dev/null || true
-            else
-              echo "  未找到 APK"
-            fi
-          done
-
-          # 下载并解压 ipk (openwrt-24.10.tar.gz) - 里面是 ipk 文件
-          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== netwizard IPK $arch ==="
-            TARGZ_URL=$(echo "$RESPONSE" | jq -r ".assets[] | select(.name | test(\"^openwrt-24\\\\.10-${arch}\\\\.tar\\\\.gz$\")) | .browser_download_url")
-
-            if [ -n "$TARGZ_URL" ] && [ "$TARGZ_URL" != "null" ]; then
-              TEMP_DIR=$(mktemp -d)
-              curl -sL "$TARGZ_URL" -o "$TEMP_DIR/netwizard.tar.gz" 2>/dev/null || true
-              tar -xzf "$TEMP_DIR/netwizard.tar.gz" -C "$TEMP_DIR" 2>/dev/null || true
-              find "$TEMP_DIR" -name "*.ipk" -exec mv {} "ipk/$arch/netwizard/" \; 2>/dev/null || true
-              ls "ipk/$arch/netwizard/" 2>/dev/null | head -5 || echo "  (目录为空)"
               rm -rf "$TEMP_DIR" 2>/dev/null || true
             else
               echo "  未找到 IPK"
