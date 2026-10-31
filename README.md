@@ -24,7 +24,7 @@
 | luci-app-nikki | nikki代理 | [nikki](https://github.com/nikkinikki-org/OpenWrt-nikki)  |
 | luci-app-online-upgrade | online-upgrade在线升级 | [online-upgrade](https://github.com/Arthur97172/luci-app-online-upgrade)  |
 | luci-app-openclash | openclash代理 | [openclash](https://github.com/vernesong/OpenClash)  |
-| luci-app-oxidns | oxidns DNS转发器 | [oxidns](https://github.com/svenshi/luci-app-oxidns)  |
+| luci-app-oxidns | oxidns DNS转发器 | [oxidns](https://github.com/Arthur97172/luci-app-oxidns)  |
 | luci-app-partexp | 分区扩容插件 | [partexp](https://github.com/sirpdboy/luci-app-partexp) |
 | luci-app-passwall | passwall代理 | [passwall](https://github.com/Openwrt-Passwall/openwrt-passwall) |
 | luci-app-poweroff | 关机插件 | [poweroff](https://github.com/Arthur97172/luci-app-poweroff) |
