@@ -121,7 +121,7 @@ jobs:
 
       - name: Download and oxidns packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/svenshi/luci-app-oxidns/releases/latest")
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-oxidns/releases/latest")
 
           mkdir -p apk/x86_64/oxidns apk/aarch64_cortex-a53/oxidns apk/aarch64_generic/oxidns
           mkdir -p ipk/x86_64/oxidns ipk/aarch64_cortex-a53/oxidns ipk/aarch64_generic/oxidns
@@ -133,16 +133,14 @@ jobs:
             # 通用的 apk
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
-                filename=$(basename "$url" | sed 's/_all\./\./')
-                curl -sL "$url" -o "apk/$arch/oxidns/$filename" 2>/dev/null && echo "  APK: $filename"
+                curl -sL "$url" -o "apk/$arch/oxidns/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
               fi
             done
 
             # 通用的 ipk (_all 格式)
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
-              if [ -n "$url" ] && [ "$url" != "null" ]; then
-                filename=$(basename "$url" | sed 's/_all\./\./')
-                curl -sL "$url" -o "ipk/$arch/oxidns/$filename" 2>/dev/null && echo "  IPK: $filename"
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/oxidns/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
               fi
             done
           done
