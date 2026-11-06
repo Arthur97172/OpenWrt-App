@@ -142,9 +142,9 @@ jobs:
             # 提取 Netspeedtest 及其关联包（包含 luci-app-netspeedtest和 luci-i18n-netspeedtest-zh-cn）
             if [[ "$filename" == *"netspeedtest"* ]]; then
             #if [[ "$filename" == *"netspeedtest"* ]] || [[ "$filename" == *"nft-fullcone"* ]]; then
-              if [[ "$f" == *.apk ]]; then
+              if [[ "$f" == *luci-app-netspeedtest-*.apk || "$f" == *luci-i18n-netspeedtest-zh-cn-*.apk ]]; then
                 cp -v "$f" output/apk/${ARCH}/netspeedtest/
-              elif [[ "$f" == *.ipk ]]; then
+              elif [[ "$f" == *luci-app-netspeedtest_*.ipk || "$f" == *luci-i18n-netspeedtest-zh-cn_*.ipk ]]; then
                 cp -v "$f" output/ipk/${ARCH}/netspeedtest/
               fi
             fi
