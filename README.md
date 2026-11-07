@@ -12,7 +12,6 @@
 | luci-app-bandix | Bandix流量监控 | [bandix](https://github.com/timsaya/luci-app-bandix) |
 | luci-app-bandix-plus | Bandix-plus流量监控 | [bandix-plus](https://github.com/timsaya/luci-app-bandix-plus) |
 | luci-app-clashoo | clashoo代理 | [clashoo](https://github.com/kenzok8/openwrt-clashoo) |
-| luci-app-cpu-status | cpu-status插件 | [cpu-status](https://github.com/OneNAS-space/luci-app-cpu-status) |
 | luci-app-daede | daede代理 | [daede](https://github.com/kenzok8/openwrt-daede) |
 | luci-app-easytier | easytier内网穿透 | [easytier](https://github.com/EasyTier/luci-app-easytier) |
 | luci-app-fcc | FCC智能体 | [fcc](https://github.com/Arthur97172/luci-app-fcc) |
@@ -36,6 +35,7 @@
 | luci-app-tasks| tasks任务管理 |[taskplan](https://github.com/Arthur97172/luci-app-tasks) |
 | luci-app-watchdog| watchdog看门狗 |[watchdog](https://github.com/sirpdboy/luci-app-watchdog) |
 | luci-app-wifimanager| WiFi管理 |[wifimanager](https://github.com/Arthur97172/luci-app-wifimanager) |
+| luci-app-xpu-status | xpu-status插件 | [cpu-status](https://github.com/Arthur97172/luci-app-xpu-status) |
 ### 通过Actions每周运行自动更新！
 
 ### 本仓库的 IPK及APK 文件来自多个项目，版权归原作者。
