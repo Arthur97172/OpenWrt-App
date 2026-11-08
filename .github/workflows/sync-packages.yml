@@ -15,28 +15,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download and xpustatus packages
+      - name: Download and corestatus packages
         run: |
-          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-xpu-status/releases/latest")
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-corestatus/releases/latest")
 
-          mkdir -p apk/x86_64/xpustatus apk/aarch64_cortex-a53/xpustatus apk/aarch64_generic/xpustatus
-          mkdir -p ipk/x86_64/xpustatus ipk/aarch64_cortex-a53/xpustatus ipk/aarch64_generic/xpustatus
-          rm -f apk/*/xpustatus/* ipk/*/xpustatus/* 2>/dev/null || true
+          mkdir -p apk/x86_64/corestatus apk/aarch64_cortex-a53/corestatus apk/aarch64_generic/corestatus
+          mkdir -p ipk/x86_64/corestatus ipk/aarch64_cortex-a53/corestatus ipk/aarch64_generic/corestatus
+          rm -f apk/*/corestatus/* ipk/*/corestatus/* 2>/dev/null || true
 
           for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
-            echo "=== xpustatus $arch ==="
+            echo "=== corestatus $arch ==="
 
             # 通用的 apk
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
               if [ -n "$url" ] && [ "$url" != "null" ]; then
-                curl -sL "$url" -o "apk/$arch/xpustatus/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+                curl -sL "$url" -o "apk/$arch/corestatus/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
               fi
             done
 
             # 通用的 ipk (_all 格式)
             for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
               if [ -n "$url" ]; then
-                curl -sL "$url" -o "ipk/$arch/xpustatus/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+                curl -sL "$url" -o "ipk/$arch/corestatus/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
               fi
             done
           done
