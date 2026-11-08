@@ -16,6 +16,7 @@ on:
           - bandix-plus
           - bandix
           - clashoo
+          - corestatus
           - deade
           - easytier
           - fcc
@@ -41,7 +42,6 @@ on:
           - turboacc
           - watchdog
           - wifimanager
-          - xpustatus
 
 permissions:
   contents: write
