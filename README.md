@@ -31,10 +31,10 @@
 | luci-app-rtp2httpd | IPTV 流媒体转发服务器 | [rtp2httpd](https://github.com/stackia/rtp2httpd) |
 | luci-app-run | 插件安装工具 | [run](https://github.com/wukongdaily/luci-app-run) |
 | luci-app-substore | substore订阅管理 | [substore](https://github.com/Arthur97172/luci-app-substore) |
-| luci-app-turboacc | turboacc加速 | [substore](https://github.com/Arthur97172/luci-app-turboacc) |
 | luci-app-smartnetpilot | smartnetpilot智能网络向导 | [smartnetpilot](https://github.com/Arthur97172/luci-app-smartnetpilot) |
 | luci-app-tailscale | tailscale虚拟组网 | [tailscale](https://github.com/tailscale/tailscale) |
 | luci-app-tasks| tasks任务管理 |[taskplan](https://github.com/Arthur97172/luci-app-tasks) |
+| luci-app-turboacc | turboacc加速 | [turboacc](https://github.com/Arthur97172/luci-app-turboacc) |
 | luci-app-watchdog| watchdog看门狗 |[watchdog](https://github.com/sirpdboy/luci-app-watchdog) |
 | luci-app-wifimanager| WiFi管理 |[wifimanager](https://github.com/Arthur97172/luci-app-wifimanager) |
 
