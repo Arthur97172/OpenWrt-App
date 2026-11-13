@@ -15,6 +15,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download and turboacc packages
+        run: |
+          RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-turboacc/releases/latest")
+
+          mkdir -p apk/x86_64/turboacc apk/aarch64_cortex-a53/turboacc apk/aarch64_generic/turboacc
+          mkdir -p ipk/x86_64/turboacc ipk/aarch64_cortex-a53/turboacc ipk/aarch64_generic/turboacc
+          rm -f apk/*/turboacc/* ipk/*/turboacc/* 2>/dev/null || true
+
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            echo "=== turboacc $arch ==="
+
+            # 通用的 apk
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("luci-.*\\.apk$")) | .browser_download_url'); do
+              if [ -n "$url" ] && [ "$url" != "null" ]; then
+                curl -sL "$url" -o "apk/$arch/turboacc/$(basename $url)" 2>/dev/null && echo "  APK: $(basename $url)"
+              fi
+            done
+
+            # 通用的 ipk (_all 格式)
+            for url in $(echo "$RESPONSE" | jq -r '.assets[] | select(.name | test("_all\\.ipk$")) | .browser_download_url'); do
+              if [ -n "$url" ]; then
+                curl -sL "$url" -o "ipk/$arch/turboacc/$(basename $url)" 2>/dev/null && echo "  IPK: $(basename $url)"
+              fi
+            done
+          done
+
       - name: Download and corestatus packages
         run: |
           RESPONSE=$(curl -sL "https://api.github.com/repos/Arthur97172/luci-app-corestatus/releases/latest")
