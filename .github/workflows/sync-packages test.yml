@@ -1,8 +1,6 @@
 name: Sync OpenWrt Packages Test
 
 on:
-  schedule:
-    - cron: '0 17 */2 * *'  # 每2日 UTC 17:00 执行（北京时间次日 01:00）
   workflow_dispatch:  # 允许手动触发
 
 permissions:
