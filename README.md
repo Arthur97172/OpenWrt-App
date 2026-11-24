@@ -35,7 +35,6 @@
 | luci-app-tailscale | tailscale虚拟组网 | [tailscale](https://github.com/tailscale/tailscale) |
 | luci-app-tasks| tasks任务管理 |[taskplan](https://github.com/Arthur97172/luci-app-tasks) |
 | luci-app-turboacc | turboacc加速 | [turboacc](https://github.com/Arthur97172/luci-app-turboacc) |
-| luci-app-watchdog| watchdog看门狗 |[watchdog](https://github.com/sirpdboy/luci-app-watchdog) |
 | luci-app-wifimanager| WiFi管理 |[wifimanager](https://github.com/Arthur97172/luci-app-wifimanager) |
 
 ### 通过Actions每周运行自动更新！
