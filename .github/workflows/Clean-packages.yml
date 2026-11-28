@@ -20,6 +20,7 @@ on:
           - deade
           - easytier
           - fcc
+          - fileassistant
           - ledcontrol
           - lucky
           - meshassistant
@@ -35,7 +36,6 @@ on:
           - passwall_pkgs
           - poweroff
           - rtp2httpd
-          - run
           - substore
           - tailscale
           - tasks
