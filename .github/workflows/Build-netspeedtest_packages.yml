@@ -27,15 +27,15 @@ jobs:
           - version: "24.10.8"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
-            
-          # --- 25.12.5 版本 ---
-          - version: "25.12.5"
+
+          # --- 25.12.6 版本 ---
+          - version: "25.12.6"
             target: "x86/64"
             arch: "x86_64"
-          - version: "25.12.5"
+          - version: "25.12.6"
             target: "armsr/armv8"
             arch: "aarch64_generic"
-          - version: "25.12.5"
+          - version: "25.12.6"
             target: "bcm27xx/bcm2710"
             arch: "aarch64_cortex-a53"
 
@@ -54,20 +54,20 @@ jobs:
           VER="${{ matrix.version }}"
           TARGET="${{ matrix.target }}"
           ARCH="${{ matrix.arch }}"
-          
+
           # 根据版本自动匹配对应的 GCC 版本号
           case "${VER}" in
             "24.10.8")
               GCC_VER="13.3.0"
               ;;
-            "25.12.5")
+            "25.12.6")
               GCC_VER="14.3.0"
               ;;
             *)
               GCC_VER="14.3.0"
               ;;
           esac
-          
+
           # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
           case "${TARGET}" in
             "x86/64")
@@ -83,17 +83,17 @@ jobs:
               TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
               ;;
           esac
-          
+
           SDK_FILE="openwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
           URL="https://downloads.openwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
-          
+
           echo "Downloading SDK from: ${URL}"
           wget -q "${URL}" || { echo "Download failed!"; exit 1; }
-          
+
           tar -xf openwrt-sdk-*.tar.*
           rm openwrt-sdk-*.tar.*
           mv openwrt-sdk-* sdk
-          
+
           cd sdk
           echo ">>> 更新基础 feeds..."
           ./scripts/feeds update -a
@@ -131,17 +131,16 @@ jobs:
       - name: Organize Packages
         run: |
           ARCH="${{ matrix.arch }}"
-          
+
           mkdir -p output/apk/${ARCH}/netspeedtest
           mkdir -p output/ipk/${ARCH}/netspeedtest
 
           echo "=== 提取 Netspeedtest 编译产物 ==="
           find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
             filename=$(basename "$f")
-            
-            # 提取 Netspeedtest 及其关联包（包含 luci-app-netspeedtest和 luci-i18n-netspeedtest-zh-cn）
+
+            # 提取 Netspeedtest 及其关联包（包含 luci-app-netspeedtest 和 luci-i18n-netspeedtest-zh-cn）
             if [[ "$filename" == *"netspeedtest"* ]]; then
-            #if [[ "$filename" == *"netspeedtest"* ]] || [[ "$filename" == *"nft-fullcone"* ]]; then
               if [[ "$f" == *luci-app-netspeedtest-*.apk || "$f" == *luci-i18n-netspeedtest-zh-cn-*.apk ]]; then
                 cp -v "$f" output/apk/${ARCH}/netspeedtest/
               elif [[ "$f" == *luci-app-netspeedtest_*.ipk || "$f" == *luci-i18n-netspeedtest-zh-cn_*.ipk ]]; then
@@ -173,14 +172,24 @@ jobs:
 
       - name: Merge and Clean Files
         run: |
-          mkdir -p apk/x86_64/netspeedtest apk/aarch64_cortex-a53/netspeedtest apk/aarch64_generic/netspeedtest
-          mkdir -p ipk/x86_64/netspeedtest ipk/aarch64_cortex-a53/netspeedtest ipk/aarch64_generic/netspeedtest
+          set -e
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            mkdir -p "apk/${arch}/netspeedtest" "ipk/${arch}/netspeedtest"
+            # 清理旧版本包，仅保留本次最新构建产物
+            rm -f "apk/${arch}/netspeedtest/"*.apk "ipk/${arch}/netspeedtest/"*.ipk
+          done
 
-          cp -rn downloaded-artifacts/*/* . || true
+          # 将各 job 的 output/（apk/、ipk/）合并到仓库根目录
+          for art_dir in downloaded-artifacts/*; do
+            [ -d "$art_dir" ] || continue
+            cp -rn "$art_dir"/* . 2>/dev/null || true
+          done
+
           rm -rf downloaded-artifacts
 
       - name: Commit and push changes
         run: |
+          set -e
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
@@ -190,8 +199,8 @@ jobs:
             echo "没有检测到文件更改，跳过提交"
           else
             git diff --staged --stat
-            git commit -m "自动同步 Netspeedtest 纯净中文版组件 - $(date +'%Y-%m-%d %H:%M:%S')"
-            
-            git pull --rebase origin main || git rebase --abort
+            git commit -m "同步 Netspeedtest - $(date +'%Y-%m-%d %H:%M:%S')"
+
+            git pull --rebase origin main
             git push origin main
           fi
