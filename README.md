@@ -16,6 +16,7 @@
 | luci-app-daede | daede代理 | [daede](https://github.com/kenzok8/openwrt-daede) |
 | luci-app-easytier | easytier内网穿透 | [easytier](https://github.com/EasyTier/luci-app-easytier) |
 | luci-app-fcc | FCC智能体 | [fcc](https://github.com/Arthur97172/luci-app-fcc) |
+| luci-app-fileassistant | 文件助手 | [fileassistant](https://github.com/Arthur97172/luci-app-fileassistant) |
 | luci-app-ledcontrol | LED指示灯控制 | [ledcontrol](https://github.com/Arthur97172/luci-app-ledcontrol) |
 | luci-app-lucky | Lucky反向代理 | [lucky](https://github.com/sirpdboy/luci-app-lucky) |
 | luci-app-meshassistant | meshassistant MESH助手 | [meshassistant](https://github.com/Arthur97172/luci-app-meshassistant) |
@@ -29,7 +30,6 @@
 | luci-app-passwall | passwall代理 | [passwall](https://github.com/Openwrt-Passwall/openwrt-passwall) |
 | luci-app-poweroff | 关机插件 | [poweroff](https://github.com/Arthur97172/luci-app-poweroff) |
 | luci-app-rtp2httpd | IPTV 流媒体转发服务器 | [rtp2httpd](https://github.com/stackia/rtp2httpd) |
-| luci-app-run | 插件安装工具 | [run](https://github.com/wukongdaily/luci-app-run) |
 | luci-app-substore | substore订阅管理 | [substore](https://github.com/Arthur97172/luci-app-substore) |
 | luci-app-smartnetpilot | smartnetpilot智能网络向导 | [smartnetpilot](https://github.com/Arthur97172/luci-app-smartnetpilot) |
 | luci-app-tailscale | tailscale虚拟组网 | [tailscale](https://github.com/tailscale/tailscale) |
