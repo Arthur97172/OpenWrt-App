@@ -1,214 +1,203 @@
 name: Sync OpenWrt Packages Test
 
 on:
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  sync-packages:
+  build:
+    name: Build (${{ matrix.version }} - ${{ matrix.target }})
     runs-on: ubuntu-latest
-    env:
-      TZ: Asia/Shanghai
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- 24.10.8 版本 ---
+          - version: "24.10.8"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "24.10.8"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "24.10.8"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
+
+          # --- 25.12.6 版本 ---
+          - version: "25.12.6"
+            target: "x86/64"
+            arch: "x86_64"
+          - version: "25.12.6"
+            target: "armsr/armv8"
+            arch: "aarch64_generic"
+          - version: "25.12.6"
+            target: "bcm27xx/bcm2710"
+            arch: "aarch64_cortex-a53"
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Sync all OpenWrt packages
+      - name: Setup Build Environment
         run: |
-          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison gawk gettext \
+            git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget
 
-          AUTH_ARGS=(-H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
-          if [ -n "${GITHUB_TOKEN:-}" ]; then
-            AUTH_ARGS+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-          fi
-
-          fetch_release() {
-            local repo="$1"
-            local body code
-            body=$(mktemp)
-            code=$(curl -sS -w "%{http_code}" -o "$body" "${AUTH_ARGS[@]}" "https://api.github.com/repos/${repo}/releases/latest" || true)
-            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-              echo "⚠️ 获取 ${repo} Release 失败 (HTTP $code)" >&2
-              rm -f "$body"
-              return 1
-            fi
-            if ! jq -e '.assets | type == "array"' "$body" >/dev/null 2>&1; then
-              echo "⚠️ ${repo} Release 缺少有效的 assets 数组" >&2
-              rm -f "$body"
-              return 1
-            fi
-            cat "$body"
-            rm -f "$body"
-          }
-
-          prepare_dirs() {
-            local pkg="$1"
-            shift
-            local arches=("$@")
-            for arch in "${arches[@]}"; do
-              mkdir -p "apk/${arch}/${pkg}" "ipk/${arch}/${pkg}"
-              rm -f "apk/${arch}/${pkg}"/* "ipk/${arch}/${pkg}"/* 2>/dev/null || true
-            done
-          }
-
-          # 通用面板/all包：下载一次后分发到指定架构列表
-          sync_universal_and_arch_assets() {
-            local pkg="$1"
-            local repo="$2"
-            shift 2
-            local arches=("$@")
-
-            prepare_dirs "$pkg" "${arches[@]}"
-            echo "🌐 正在同步 ${pkg} (${repo})..."
-
-            local resp
-            if ! resp=$(fetch_release "$repo"); then
-              return 0
-            fi
-
-            while IFS= read -r url; do
-              [ -n "$url" ] && [ "$url" != "null" ] || continue
-              local filename tmp_file type_dir
-              filename=$(basename "$url")
-              case "$filename" in
-                *.apk) type_dir="apk" ;;
-                *.ipk) type_dir="ipk" ;;
-                *) continue ;;
-              esac
-
-              tmp_file=$(mktemp)
-              if ! curl -fsSL "${AUTH_ARGS[@]}" "$url" -o "$tmp_file" 2>/dev/null; then
-                echo "  ⚠️ 下载失败: $filename" >&2
-                rm -f "$tmp_file"
-                continue
-              fi
-
-              if [[ "$filename" == *"luci-app-"* ]] || [[ "$filename" == *"luci-i18n-"* ]] || [[ "$filename" == *"_all"* ]] || [[ "$filename" == *"-all"* ]]; then
-                for arch in "${arches[@]}"; do
-                  cp "$tmp_file" "${type_dir}/${arch}/${pkg}/${filename}"
-                done
-                echo "  🎯 Universal: $filename -> 全目标架构"
-              else
-                local matched=0
-                for arch in "${arches[@]}"; do
-                  if [[ "$filename" == *"${arch}"* ]]; then
-                    cp "$tmp_file" "${type_dir}/${arch}/${pkg}/${filename}"
-                    echo "  🎯 Arch (${arch}): $filename"
-                    matched=1
-                  fi
-                done
-                if [ "$matched" -eq 0 ]; then
-                  echo "  ↷ 跳过无关架构文件: $filename"
-                fi
-              fi
-              rm -f "$tmp_file"
-            done < <(echo "$resp" | jq -r '.assets[].browser_download_url')
-          }
-
-          # 压缩包类（SNAPSHOT-<arch>.tar.gz / openwrt-24.10-<arch>.tar.gz）
-          sync_tarball_pkg() {
-            local pkg="$1"
-            local repo="$2"
-            local apk_prefix="$3"
-            local ipk_prefix="$4"
-            shift 4
-            local arches=("$@")
-
-            prepare_dirs "$pkg" "${arches[@]}"
-            echo "🌐 正在同步压缩包类 ${pkg} (${repo})..."
-
-            local resp
-            if ! resp=$(fetch_release "$repo"); then
-              return 0
-            fi
-
-            for arch in "${arches[@]}"; do
-              local apk_url ipk_url tmp_dir
-              apk_url=$(echo "$resp" | jq -r --arg name "${apk_prefix}-${arch}.tar.gz" '.assets[] | select(.name == $name) | .browser_download_url' | head -n1)
-              if [ -n "$apk_url" ] && [ "$apk_url" != "null" ]; then
-                tmp_dir=$(mktemp -d)
-                curl -fsSL "${AUTH_ARGS[@]}" "$apk_url" -o "$tmp_dir/pkg.tar.gz" 2>/dev/null && tar -xzf "$tmp_dir/pkg.tar.gz" -C "$tmp_dir" 2>/dev/null || true
-                find "$tmp_dir" -name "*.apk" -exec mv {} "apk/${arch}/${pkg}/" \; 2>/dev/null || true
-                rm -rf "$tmp_dir"
-              fi
-
-              ipk_url=$(echo "$resp" | jq -r --arg name "${ipk_prefix}-${arch}.tar.gz" '.assets[] | select(.name == $name) | .browser_download_url' | head -n1)
-              if [ -n "$ipk_url" ] && [ "$ipk_url" != "null" ]; then
-                tmp_dir=$(mktemp -d)
-                curl -fsSL "${AUTH_ARGS[@]}" "$ipk_url" -o "$tmp_dir/pkg.tar.gz" 2>/dev/null && tar -xzf "$tmp_dir/pkg.tar.gz" -C "$tmp_dir" 2>/dev/null || true
-                find "$tmp_dir" -name "*.ipk" -exec mv {} "ipk/${arch}/${pkg}/" \; 2>/dev/null || true
-                rm -rf "$tmp_dir"
-              fi
-            done
-          }
-
-          # zip 类（easytier）
-          sync_easytier() {
-            local arches=(x86_64 aarch64_cortex-a53 aarch64_generic)
-            prepare_dirs "easytier" "${arches[@]}"
-            echo "🌐 正在同步 easytier (EasyTier/luci-app-easytier)..."
-
-            local resp
-            if ! resp=$(fetch_release "EasyTier/luci-app-easytier"); then
-              return 0
-            fi
-
-            for arch in "${arches[@]}"; do
-              local apk_zip ipk_zip tmp_dir
-              apk_zip=$(echo "$resp" | jq -r --arg a "${arch}-" '.assets[] | select(.name | contains($a) and endswith("SNAPSHOT.zip")) | .browser_download_url' | head -n1)
-              if [ -n "$apk_zip" ] && [ "$apk_zip" != "null" ]; then
-                tmp_dir=$(mktemp -d)
-                curl -fsSL "${AUTH_ARGS[@]}" "$apk_zip" -o "$tmp_dir/et_apk.zip" 2>/dev/null && unzip -q "$tmp_dir/et_apk.zip" -d "$tmp_dir" 2>/dev/null || true
-                find "$tmp_dir" -name "*.apk" -exec mv {} "apk/${arch}/easytier/" \; 2>/dev/null || true
-                rm -rf "$tmp_dir"
-              fi
-
-              ipk_zip=$(echo "$resp" | jq -r --arg a "${arch}-" '.assets[] | select(.name | contains($a) and (contains("SNAPSHOT") | not) and endswith(".zip")) | .browser_download_url' | head -n1)
-              if [ -n "$ipk_zip" ] && [ "$ipk_zip" != "null" ]; then
-                tmp_dir=$(mktemp -d)
-                curl -fsSL "${AUTH_ARGS[@]}" "$ipk_zip" -o "$tmp_dir/et_ipk.zip" 2>/dev/null && unzip -q "$tmp_dir/et_ipk.zip" -d "$tmp_dir" 2>/dev/null || true
-                find "$tmp_dir" -name "*.ipk" -exec mv {} "ipk/${arch}/easytier/" \; 2>/dev/null || true
-                rm -rf "$tmp_dir"
-              fi
-            done
-          }
-
-          ALL_ARCHES=(x86_64 aarch64_cortex-a53 aarch64_generic)
-          ARM64_ARCHES=(aarch64_cortex-a53 aarch64_generic)
-
-          sync_universal_and_arch_assets "turboacc"     "Arthur97172/luci-app-turboacc"     "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "corestatus"   "Arthur97172/luci-app-corestatus"   "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "meshassistant" "Arthur97172/luci-app-meshassistant" "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "smartnetpilot" "Arthur97172/luci-app-smartnetpilot" "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "tasks"        "Arthur97172/luci-app-tasks"        "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "fcc"          "Arthur97172/luci-app-fcc"          "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "poweroff"     "Arthur97172/luci-app-poweroff"     "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "oxidns"       "Arthur97172/luci-app-oxidns"       "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "wifimanager"  "Arthur97172/luci-app-wifimanager"  "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "ledcontrol"   "Arthur97172/luci-app-ledcontrol"   "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "online-upgrade" "Arthur97172/luci-app-online-upgrade" "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "substore"     "Arthur97172/luci-app-substore"     "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "run"          "wukongdaily/luci-app-run"          "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "amlogic"      "ophub/luci-app-amlogic"            "${ARM64_ARCHES[@]}"
-          sync_universal_and_arch_assets "rtp2httpd"    "stackia/rtp2httpd"                 "${ALL_ARCHES[@]}"
-          sync_universal_and_arch_assets "clashoo"      "kenzok8/openwrt-clashoo"           "${ALL_ARCHES[@]}"
-
-          sync_tarball_pkg "watchdog" "sirpdboy/luci-app-watchdog" "SNAPSHOT" "openwrt-24.10" "${ALL_ARCHES[@]}"
-          sync_tarball_pkg "lucky"    "sirpdboy/luci-app-lucky"    "SNAPSHOT" "openwrt-24.10" "${ALL_ARCHES[@]}"
-          sync_easytier
-
-      - name: Commit and push updated packages
+      - name: Download & Extract OpenWrt SDK
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apk ipk
-          if git diff --staged --quiet; then
-            echo "没有检测到包文件变更，跳过提交"
+          VER="${{ matrix.version }}"
+          TARGET="${{ matrix.target }}"
+          ARCH="${{ matrix.arch }}"
+
+          # 根据版本自动匹配对应的 GCC 版本号
+          case "${VER}" in
+            "24.10.8")
+              GCC_VER="13.3.0"
+              ;;
+            "25.12.6")
+              GCC_VER="14.3.0"
+              ;;
+            *)
+              GCC_VER="14.3.0"
+              ;;
+          esac
+
+          # 根据矩阵中的 target 映射出 SDK 文件名中的架构段（例如 x86/64 -> x86-64）
+          case "${TARGET}" in
+            "x86/64")
+              TARGET_STR="x86-64"
+              ;;
+            "armsr/armv8")
+              TARGET_STR="armsr-armv8"
+              ;;
+            "bcm27xx/bcm2710")
+              TARGET_STR="bcm27xx-bcm2710"
+              ;;
+            *)
+              TARGET_STR=$(echo "${TARGET}" | tr '/' '-')
+              ;;
+          esac
+
+          SDK_FILE="openwrt-sdk-${VER}-${TARGET_STR}_gcc-${GCC_VER}_musl.Linux-x86_64.tar.zst"
+          URL="https://downloads.openwrt.org/releases/${VER}/targets/${TARGET}/${SDK_FILE}"
+
+          echo "Downloading SDK from: ${URL}"
+          wget -q "${URL}" || { echo "Download failed!"; exit 1; }
+
+          tar -xf openwrt-sdk-*.tar.*
+          rm openwrt-sdk-*.tar.*
+          mv openwrt-sdk-* sdk
+
+          cd sdk
+          echo ">>> 更新基础 feeds..."
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Clone Netspeedtest
+        run: |
+          set -e
+          cd sdk/package
+
+          echo ">>> 克隆 Netspeedtest 主仓库..."
+          git clone --depth=1 https://github.com/muink/luci-app-netspeedtest tmp_netspeedtest
+          if [ -d "tmp_netspeedtest/luci-app-netspeedtest" ]; then
+            cp -a tmp_netspeedtest/luci-app-netspeedtest ./
           else
-            git commit -m "chore(packages): sync OpenWrt apk/ipk packages ($(date '+%Y-%m-%d %H:%M'))"
-            git push
+            cp -a tmp_netspeedtest ./luci-app-netspeedtest
+          fi
+          rm -rf tmp_netspeedtest
+
+      - name: Configure and Fast Compile
+        run: |
+          set -e
+          cd sdk
+
+          # 写入 Netspeedtest 及其语言包配置
+          echo "CONFIG_PACKAGE_luci-app-netspeedtest=m" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-netspeedtest-zh-cn=m" >> .config
+
+          make defconfig
+          echo ">>> 开始精准快速编译 Netspeedtest..."
+
+          # 只编译 Netspeedtest 目标，1-2 分钟即可完成
+          make package/luci-app-netspeedtest/compile V=s -j$(nproc) || make package/luci-app-netspeedtest/compile V=s -j1
+
+      - name: Organize Packages
+        run: |
+          ARCH="${{ matrix.arch }}"
+
+          mkdir -p output/apk/${ARCH}/netspeedtest
+          mkdir -p output/ipk/${ARCH}/netspeedtest
+
+          echo "=== 提取 Netspeedtest 编译产物 ==="
+          find sdk/bin/ -type f \( -name "*.apk" -o -name "*.ipk" \) | while read -r f; do
+            filename=$(basename "$f")
+
+            # 提取 Netspeedtest 及其关联包（包含 luci-app-netspeedtest 和 luci-i18n-netspeedtest-zh-cn）
+            if [[ "$filename" == *"netspeedtest"* ]]; then
+              if [[ "$f" == *luci-app-netspeedtest-*.apk || "$f" == *luci-i18n-netspeedtest-zh-cn-*.apk ]]; then
+                cp -v "$f" output/apk/${ARCH}/netspeedtest/
+              elif [[ "$f" == *luci-app-netspeedtest_*.ipk || "$f" == *luci-i18n-netspeedtest-zh-cn_*.ipk ]]; then
+                cp -v "$f" output/ipk/${ARCH}/netspeedtest/
+              fi
+            fi
+          done
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: netspeedtest-${{ matrix.version }}-${{ matrix.arch }}
+          path: output/
+
+  commit:
+    name: Commit & Push Packages
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      - name: Merge and Clean Files
+        run: |
+          set -e
+          for arch in x86_64 aarch64_cortex-a53 aarch64_generic; do
+            mkdir -p "apk/${arch}/netspeedtest" "ipk/${arch}/netspeedtest"
+            # 清理旧版本包，仅保留本次最新构建产物
+            rm -f "apk/${arch}/netspeedtest/"*.apk "ipk/${arch}/netspeedtest/"*.ipk
+          done
+
+          # 将各 job 的 output/（apk/、ipk/）合并到仓库根目录
+          for art_dir in downloaded-artifacts/*; do
+            [ -d "$art_dir" ] || continue
+            cp -rn "$art_dir"/* . 2>/dev/null || true
+          done
+
+          rm -rf downloaded-artifacts
+
+      - name: Commit and push changes
+        run: |
+          set -e
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add apk/ ipk/
+
+          if git diff --staged --quiet; then
+            echo "没有检测到文件更改，跳过提交"
+          else
+            git diff --staged --stat
+            git commit -m "自动同步 Netspeedtest 纯净中文版组件 - $(date +'%Y-%m-%d %H:%M:%S')"
+
+            git pull --rebase origin main
+            git push origin main
           fi
